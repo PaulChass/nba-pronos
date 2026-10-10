@@ -11,10 +11,13 @@ export const dynamic = 'force-dynamic'
 
 type Step = { ok: boolean; error?: string; [detail: string]: unknown }
 
-/** Vercel sends `Authorization: Bearer <CRON_SECRET>` when the env var is set. */
+/**
+ * Vercel sends `Authorization: Bearer <CRON_SECRET>`. Fails closed on any deployed build without the
+ * secret: otherwise anyone could re-snapshot the odds at will or hammer ESPN from our IPs.
+ */
 function authorized(req: Request): boolean {
   const secret = process.env.CRON_SECRET
-  if (!secret) return true
+  if (!secret) return process.env.NODE_ENV !== 'production'
   const got = Buffer.from(req.headers.get('authorization') ?? '')
   const want = Buffer.from(`Bearer ${secret}`)
   return got.length === want.length && timingSafeEqual(got, want)
@@ -36,7 +39,11 @@ export async function GET(req: Request): Promise<Response> {
   const [odds, standings, results] = await Promise.all([
     locked
       ? Promise.resolve<Step>({ ok: true, skipped: 'locked: the odds snapshot is frozen' })
-      : step(async () => ({ ok: true, markets: await refreshOddsSnapshot(SEASON.espnSeason, ESPN_UA) })),
+      : step(async () => {
+          const r = await refreshOddsSnapshot(SEASON.espnSeason, ESPN_UA)
+          // A market missing from today's feed kept yesterday's odds: worth a visible warning.
+          return { ok: r.carried.length === 0, ...r }
+        }),
     step(async () => ({ ok: true, ...(await refreshStandings()) })),
     step(async () => {
       const r = await refreshAutoResults()

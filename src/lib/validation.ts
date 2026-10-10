@@ -242,7 +242,15 @@ export function questionHotTakeAllowed(q: QuestionId, pick: string | undefined, 
   const probs = Object.values(market)
   const fav = Math.max(...probs)
   const p = market[pick] ?? Math.min(...probs) // unlisted picks count as the longest shot
-  return p <= fav / SCORING.htOddsRatio
+  return isLongShot(p, fav)
+}
+
+/**
+ * "At least htOddsRatio times less likely than the favourite". Multiplying (not dividing) plus a
+ * tiny tolerance keeps exact 3x ratios eligible despite floating-point rounding.
+ */
+export function isLongShot(p: number, favourite: number): boolean {
+  return p * SCORING.htOddsRatio <= favourite * (1 + 1e-9)
 }
 
 export function parseHotTakes(input: unknown): HotTakes | null {

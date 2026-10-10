@@ -21,8 +21,11 @@ create table if not exists predictions (
   -- Server-computed: the grid satisfies every blocking rule (30 teams, 1230 wins, order).
   grid_valid      boolean not null default false,
   first_saved_at  timestamptz not null default now(),
-  last_saved_at   timestamptz not null default now()
+  last_saved_at   timestamptz not null default now(),
+  -- Bumped on every save: optimistic concurrency between tabs/devices.
+  version         int not null default 1
 );
+alter table predictions add column if not exists version int not null default 1;
 
 -- Admin overrides of question results (auto results come from ESPN at request time).
 -- answer: {"status":"final","winners":["123"]} or {"status":"void"}.

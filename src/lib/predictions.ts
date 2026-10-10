@@ -24,10 +24,23 @@ function rowToDoc(row: Record<string, unknown>): PredictionDoc {
 }
 
 /** The user's own prediction (empty skeleton if they never saved). */
-export async function getOwnPrediction(userId: number): Promise<PredictionDoc & { gridValid: boolean; lastSavedAt: string | null }> {
-  const rows = await sql()`select grid, answers, hot_takes, grid_valid, last_saved_at from predictions where user_id = ${userId}`
-  if (!rows.length) return { grid: emptyGrid(), answers: {}, hotTakes: emptyHotTakes(), gridValid: false, lastSavedAt: null }
-  return { ...rowToDoc(rows[0]), gridValid: rows[0].grid_valid, lastSavedAt: new Date(rows[0].last_saved_at).toISOString() }
+export interface OwnPrediction extends PredictionDoc {
+  gridValid: boolean
+  lastSavedAt: string | null
+  /** Bumped on every save (0 = never saved). Editors send it back to detect a stale tab/device. */
+  version: number
+}
+
+export async function getOwnPrediction(userId: number): Promise<OwnPrediction> {
+  const rows = await sql()`select grid, answers, hot_takes, grid_valid, last_saved_at, version from predictions where user_id = ${userId}`
+  if (!rows.length)
+    return { grid: emptyGrid(), answers: {}, hotTakes: emptyHotTakes(), gridValid: false, lastSavedAt: null, version: 0 }
+  return {
+    ...rowToDoc(rows[0]),
+    gridValid: rows[0].grid_valid,
+    lastSavedAt: new Date(rows[0].last_saved_at).toISOString(),
+    version: rows[0].version,
+  }
 }
 
 /**
@@ -50,22 +63,33 @@ export async function listPredictionsAfterLock(): Promise<StoredPrediction[]> {
 }
 
 export type SaveResult =
-  | { ok: true; gridValid: boolean; prunedHotTakes: string[]; savedAt: string }
-  | { ok: false; error: string; fieldErrors?: Record<string, string> }
+  | { ok: true; gridValid: boolean; prunedHotTakes: string[]; savedAt: string; version: number }
+  | { ok: false; error: string; fieldErrors?: Record<string, string>; conflict?: boolean }
+
+const LOCKED_ERROR = 'Les pronos sont verrouillés depuis le premier match.'
+const CONFLICT_ERROR =
+  'Tes pronos ont été modifiés ailleurs (autre onglet ou autre appareil). Recharge la page pour repartir de la dernière version.'
 
 /**
  * Saves any subset of grid / answers / hot takes. The grid may be saved incomplete (draft);
  * grid_valid records whether it passes every blocking rule. Answers must be valid ids.
- * Hot takes that no longer qualify after a grid/answer change are dropped (and reported).
+ * Hot takes that no longer qualify after a grid/answer change (or an odds refresh) are dropped
+ * and reported; a hot take the user is adding right now is refused instead.
+ *
+ * expectedVersion: the version the editor started from. If the stored prediction moved on since
+ * (another tab or device saved), the save is refused rather than silently overwriting it.
  */
 export async function savePrediction(
   userId: number,
   patch: { grid?: GridPrediction; answers?: Answers; hotTakes?: HotTakes },
+  expectedVersion?: number,
 ): Promise<SaveResult> {
   const lock = lockAt()
-  if (Date.now() >= lock.getTime()) return { ok: false, error: 'Les pronos sont verrouillés depuis le premier match.' }
+  if (Date.now() >= lock.getTime()) return { ok: false, error: LOCKED_ERROR }
 
   const current = await getOwnPrediction(userId)
+  if (expectedVersion !== undefined && expectedVersion !== current.version)
+    return { ok: false, error: CONFLICT_ERROR, conflict: true }
   const next: PredictionDoc = {
     grid: patch.grid ?? current.grid,
     answers: patch.answers ?? current.answers,
@@ -97,11 +121,14 @@ export async function savePrediction(
     }
   }
   next.hotTakes = { teams, questions }
-  // Pruning is reported only when the user did not explicitly ask for those hot takes just now.
-  const reported = patch.hotTakes ? [] : pruned
-  if (patch.hotTakes && pruned.length) {
-    return { ok: false, error: `Hot take refusé (${pruned.join(', ')}) : pas assez d’écart avec les bookmakers.` }
+  // A hot take being added right now that does not qualify is refused; ones already stored that
+  // stopped qualifying (grid/answer change, odds refresh) are dropped and reported.
+  const had = new Set<string>([...current.hotTakes.teams, ...current.hotTakes.questions])
+  const refused = patch.hotTakes ? pruned.filter((id) => !had.has(id)) : []
+  if (refused.length) {
+    return { ok: false, error: `Hot take refusé (${refused.join(', ')}) : pas assez d’écart avec les bookmakers.` }
   }
+  const reported = pruned.filter((id) => had.has(id))
 
   const gridValid = gridStatus(next.grid).valid
   const rows = await sql()`
@@ -111,9 +138,18 @@ export async function savePrediction(
     where now() < ${lock.toISOString()}::timestamptz
     on conflict (user_id) do update set
       grid = excluded.grid, answers = excluded.answers, hot_takes = excluded.hot_takes,
-      grid_valid = excluded.grid_valid, last_saved_at = now()
-    where now() < ${lock.toISOString()}::timestamptz
-    returning last_saved_at`
-  if (!rows.length) return { ok: false, error: 'Les pronos sont verrouillés depuis le premier match.' }
-  return { ok: true, gridValid, prunedHotTakes: reported, savedAt: new Date(rows[0].last_saved_at).toISOString() }
+      grid_valid = excluded.grid_valid, last_saved_at = now(), version = predictions.version + 1
+    where now() < ${lock.toISOString()}::timestamptz and predictions.version = ${current.version}
+    returning last_saved_at, version`
+  if (!rows.length) {
+    if (Date.now() >= lock.getTime()) return { ok: false, error: LOCKED_ERROR }
+    return { ok: false, error: CONFLICT_ERROR, conflict: true } // a concurrent save won the race
+  }
+  return {
+    ok: true,
+    gridValid,
+    prunedHotTakes: reported,
+    savedAt: new Date(rows[0].last_saved_at).toISOString(),
+    version: rows[0].version,
+  }
 }

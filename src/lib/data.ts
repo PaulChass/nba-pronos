@@ -19,9 +19,9 @@ export const COACH_BY_ID: Record<string, Coach> = Object.fromEntries(COACHES.map
 export function answerLookup(kind: AnswerKind, id: string): boolean {
   const team = teamAnswerValid(kind, id)
   if (team !== null) return team
-  if (kind === 'coach') return id in COACH_BY_ID
-  if (kind === 'rookie') return PLAYER_BY_ID[id]?.rookie === true
-  return id in PLAYER_BY_ID
+  if (kind === 'coach') return Object.hasOwn(COACH_BY_ID, id)
+  if (kind === 'rookie') return Object.hasOwn(PLAYER_BY_ID, id) && PLAYER_BY_ID[id].rookie === true
+  return Object.hasOwn(PLAYER_BY_ID, id)
 }
 
 /** Human label for an answer id of a given kind ("Victor Wembanyama (SAS)", "Spurs"…). */

@@ -38,6 +38,8 @@ export function pseudoError(raw: string): string | null {
   const p = cleanPseudo(raw)
   if (p.length < 2 || p.length > 20) return 'Le pseudo doit faire entre 2 et 20 caractères.'
   if (!/^[\p{L}\p{N} _.'-]+$/u.test(p)) return 'Lettres, chiffres, espaces, points, tirets et apostrophes uniquement.'
+  // Also rules out "." / ".." which would collapse as URL path segments (/joueur/..).
+  if (!/[\p{L}\p{N}]/u.test(p)) return 'Le pseudo doit contenir au moins une lettre ou un chiffre.'
   return null
 }
 
@@ -150,35 +152,31 @@ export async function authenticate(rawPseudo: string, pin: string): Promise<Auth
   const generic = 'Pseudo ou code PIN incorrect.'
   if (pinError(pin)) return { ok: false, error: generic }
   const key = pseudoKey(rawPseudo)
+  const lockedError = `Trop d’essais : compte bloqué ${LOCKOUT_MINUTES} minutes. Réessaie plus tard.`
+  // Claim the attempt BEFORE checking the PIN, in the same statement as the lock check: concurrent
+  // UPDATEs on the row serialize, so a burst of parallel guesses cannot all slip in before the
+  // 5th failure sets the lock. The 5th claim sets the lock and resets the counter.
   const rows = await sql()`
-    select id, pseudo, pin_hash, failed_attempts, locked_until, session_version
-    from users where pseudo_key = ${key}`
+    update users set
+      failed_attempts = case when failed_attempts + 1 >= ${MAX_FAILED_ATTEMPTS} then 0 else failed_attempts + 1 end,
+      locked_until = case when failed_attempts + 1 >= ${MAX_FAILED_ATTEMPTS}
+        then now() + make_interval(mins => ${LOCKOUT_MINUTES}) else null end
+    where pseudo_key = ${key} and (locked_until is null or locked_until <= now())
+    returning id, pseudo, pin_hash, locked_until, session_version`
   const row = rows[0]
   if (!row) {
     await hashPin(pin) // keep timing similar to the "known pseudo" path
-    return { ok: false, error: generic }
-  }
-  if (row.locked_until && new Date(row.locked_until).getTime() > Date.now()) {
-    return { ok: false, error: `Trop d’essais : compte bloqué ${LOCKOUT_MINUTES} minutes. Réessaie plus tard.` }
+    const known = await sql()`select locked_until from users where pseudo_key = ${key}`
+    const locked = known[0]?.locked_until && new Date(known[0].locked_until).getTime() > Date.now()
+    return { ok: false, error: locked ? lockedError : generic }
   }
   if (!(await verifyPin(pin, row.pin_hash))) {
-    // Atomic increment; the 5th consecutive failure sets the lock and resets the counter.
-    const updated = await sql()`
-      update users set
-        failed_attempts = case when failed_attempts + 1 >= ${MAX_FAILED_ATTEMPTS} then 0 else failed_attempts + 1 end,
-        locked_until = case when failed_attempts + 1 >= ${MAX_FAILED_ATTEMPTS}
-          then now() + make_interval(mins => ${LOCKOUT_MINUTES}) else locked_until end
-      where id = ${row.id}
-      returning locked_until`
-    const lockedNow = updated[0]?.locked_until && new Date(updated[0].locked_until).getTime() > Date.now()
-    return {
-      ok: false,
-      error: lockedNow ? `Trop d’essais : compte bloqué ${LOCKOUT_MINUTES} minutes.` : generic,
-    }
+    const lockedNow = row.locked_until && new Date(row.locked_until).getTime() > Date.now()
+    return { ok: false, error: lockedNow ? lockedError : generic }
   }
-  if (row.failed_attempts !== 0 || row.locked_until) {
-    await sql()`update users set failed_attempts = 0, locked_until = null where id = ${row.id}`
-  }
+  // Right PIN: this attempt was already counted, so the reset is unconditional (a correct 5th
+  // attempt must still log in even though its claim just set the lock).
+  await sql()`update users set failed_attempts = 0, locked_until = null where id = ${row.id}`
   return {
     ok: true,
     user: { id: row.id, pseudo: row.pseudo, isAdmin: isAdminKey(key) },

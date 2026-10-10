@@ -158,8 +158,8 @@ export default function RulesPage() {
             🧮
           </span>
           <p>
-            <strong>Pas d’IA.</strong> Les points sont calculés uniquement par les formules de cette page, les mêmes
-            pour tout le monde. Chaque point est détaillé sur la page de chaque joueur.
+            <strong>Que des formules.</strong> Les points sont calculés uniquement par les règles de cette page, les
+            mêmes pour tout le monde. Chaque point est détaillé sur la page de chaque joueur.
           </p>
         </div>
       </div>

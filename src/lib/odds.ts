@@ -3,6 +3,7 @@
 // last pre-lock snapshot is frozen. If no snapshot exists, the file captured on 2026-10-10 is used.
 import fallbackFutures from '@/data/futures-fallback.json'
 import { QUESTIONS } from '@/config/questions'
+import { isLocked } from '@/config/season'
 import { kvGet, kvSet } from './db'
 import { TEAM_BY_ESPN_ID } from './data'
 import type { QuestionOdds } from './types'
@@ -50,27 +51,43 @@ export function parseFutures(json: EspnFutures): QuestionOdds {
   return out
 }
 
-/** Odds used for hot takes right now (before lock: latest snapshot; after: frozen). */
+const FALLBACK_AS_OF = '2026-10-10T12:00:00Z'
+const fallbackOdds = (): QuestionOdds => parseFutures(fallbackFutures as EspnFutures)
+
+/**
+ * Odds used for hot takes right now (before lock: latest snapshot; after: frozen). The bundled
+ * copy is used only when no snapshot was ever stored, never to paper over a failed DB read: after
+ * the lock that would silently change who qualified for a hot take.
+ */
 export async function getQuestionOdds(): Promise<{ odds: QuestionOdds; asOf: string; source: 'snapshot' | 'fallback' }> {
-  try {
-    const snap = await kvGet<QuestionOdds>(ODDS_KV_KEY)
-    if (snap && Object.keys(snap.value).length) return { odds: snap.value, asOf: snap.updatedAt, source: 'snapshot' }
-  } catch {
-    // DB unavailable: fall through to the bundled snapshot
-  }
-  return { odds: parseFutures(fallbackFutures as EspnFutures), asOf: '2026-10-10T12:00:00Z', source: 'fallback' }
+  if (!process.env.DATABASE_URL) return { odds: fallbackOdds(), asOf: FALLBACK_AS_OF, source: 'fallback' }
+  const snap = await kvGet<QuestionOdds>(ODDS_KV_KEY)
+  if (snap && Object.keys(snap.value).length) return { odds: snap.value, asOf: snap.updatedAt, source: 'snapshot' }
+  return { odds: fallbackOdds(), asOf: FALLBACK_AS_OF, source: 'fallback' }
 }
 
-/** Called by the daily cron before the lock. */
-export async function refreshOddsSnapshot(season: number, userAgent: string): Promise<number> {
+/**
+ * Called by the daily cron before the lock. Merges per market: a market ESPN dropped today keeps
+ * its last known odds (reported in `carried`), so the snapshot frozen at lock is never partial.
+ */
+export async function refreshOddsSnapshot(
+  season: number,
+  userAgent: string,
+): Promise<{ markets: number; carried: string[] }> {
   const res = await fetch(FUTURES_URL(season), {
     headers: { 'user-agent': userAgent, accept: 'application/json' },
     cache: 'no-store',
+    signal: AbortSignal.timeout(10_000),
   })
   if (!res.ok) throw new Error(`ESPN futures ${res.status}`)
-  const odds = parseFutures((await res.json()) as EspnFutures)
-  const markets = Object.keys(odds).length
-  if (markets === 0) throw new Error('ESPN futures: no market parsed')
-  await kvSet(ODDS_KV_KEY, odds)
-  return markets
+  const fresh = parseFutures((await res.json()) as EspnFutures)
+  if (Object.keys(fresh).length === 0) throw new Error('ESPN futures: no market parsed')
+  const prev = (await kvGet<QuestionOdds>(ODDS_KV_KEY))?.value ?? {}
+  const base = Object.keys(prev).length ? prev : fallbackOdds()
+  const merged: QuestionOdds = { ...base, ...fresh }
+  const carried = QUESTIONS.filter((q) => q.futuresMarket && !fresh[q.id] && merged[q.id]).map((q) => q.id)
+  // A run that started just before the lock must not write after it: the snapshot is frozen.
+  if (isLocked()) throw new Error('locked: the odds snapshot is frozen')
+  await kvSet(ODDS_KV_KEY, merged)
+  return { markets: Object.keys(fresh).length, carried }
 }
