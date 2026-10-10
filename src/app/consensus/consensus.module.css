@@ -1,0 +1,399 @@
+.header p {
+  margin: 0;
+}
+
+/* ---- before the lock */
+.teaser p {
+  margin: 0;
+}
+.teaserTitle {
+  font: 800 1.35rem/1.2 var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.01em;
+}
+
+.callout {
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  background: var(--accent-soft);
+  font-size: 0.92rem;
+}
+
+/* ---- legend */
+.legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+.legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.lgRange,
+.lgGroup,
+.lgLine,
+.lgProj {
+  display: inline-block;
+  flex: none;
+}
+.lgRange {
+  width: 18px;
+  height: 8px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--accent) 28%, transparent);
+}
+.lgGroup {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.lgLine {
+  width: 3px;
+  height: 14px;
+  border-radius: 2px;
+  background: var(--ink);
+}
+.lgProj {
+  width: 9px;
+  height: 9px;
+  transform: rotate(45deg);
+  background: var(--ok);
+}
+
+/* ---- team rows: stacked on phones, one line per team from 600px */
+.teams {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.team {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px 10px;
+  align-items: center;
+  padding: 10px 8px;
+  border-bottom: 1px solid var(--line);
+}
+.team:last-child {
+  border-bottom: 0;
+}
+.disagree {
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.teamName {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  min-width: 0;
+}
+.rank {
+  width: 1.4em;
+  text-align: right;
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+.name {
+  font-weight: 700;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.gapBadge {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  font-variant-numeric: tabular-nums;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.statLabel {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  font-weight: 600;
+}
+.statValue {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.statSub {
+  font-weight: 500;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+/* The mini chart: a baseline, the group's min–max band, then markers. */
+.track {
+  grid-column: 1 / -1;
+  position: relative;
+  height: 22px;
+}
+.track::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 2px;
+  margin-top: -1px;
+  background: var(--line);
+  border-radius: 1px;
+}
+.range,
+.mLine,
+.mGroup,
+.mProj {
+  position: absolute;
+  top: 50%;
+}
+.range {
+  height: 10px;
+  margin-top: -5px;
+  min-width: 4px;
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--accent) 28%, transparent);
+}
+.mLine {
+  width: 3px;
+  height: 20px;
+  margin-top: -10px;
+  border-radius: 2px;
+  background: var(--ink);
+  transform: translateX(-50%);
+}
+.mProj {
+  width: 10px;
+  height: 10px;
+  margin-top: -5px;
+  background: var(--ok);
+  transform: translateX(-50%) rotate(45deg);
+  box-shadow: 0 0 0 2px var(--surface);
+}
+.mGroup {
+  width: 13px;
+  height: 13px;
+  margin-top: -6.5px;
+  border-radius: 50%;
+  background: var(--accent);
+  transform: translateX(-50%);
+  box-shadow: 0 0 0 2px var(--surface);
+}
+
+/* Column titles + scale: only meaningful in the one-line layout. */
+.headRow {
+  display: none;
+}
+.headNum {
+  text-align: right;
+}
+.headAxis {
+  display: flex;
+  justify-content: space-between;
+}
+.vs {
+  display: inline;
+}
+
+@media (min-width: 600px) {
+  .team,
+  .headRow {
+    grid-template-columns: minmax(0, 1.5fr) 74px 52px 64px minmax(0, 2fr);
+  }
+  .team {
+    gap: 10px;
+    padding: 8px;
+  }
+  .teamName,
+  .track {
+    grid-column: auto;
+  }
+  .stat {
+    text-align: right;
+  }
+  .statLabel {
+    /* Column titles live in .headRow; keep the labels for screen readers only. */
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+  .statValue {
+    white-space: normal;
+  }
+  .statSub {
+    display: block;
+  }
+  .vs {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+  .headRow {
+    display: grid;
+    gap: 10px;
+    padding: 0 8px 6px;
+    border-bottom: 1px solid var(--line);
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+    font-weight: 600;
+  }
+}
+
+/* ---- questions */
+.questions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+}
+@media (min-width: 600px) {
+  .questions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+.question {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+.question p {
+  margin: 0;
+}
+.qHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+.points {
+  flex: none;
+  white-space: nowrap;
+}
+.qTitle {
+  margin: 0;
+  font-size: 1.05rem;
+  text-transform: uppercase;
+}
+
+.picks {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.pick {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.pickLine {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+.pickName {
+  font-weight: 600;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.pickPct {
+  font-weight: 700;
+  flex: none;
+}
+.check {
+  color: var(--ok);
+  font-weight: 800;
+}
+.bar {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  overflow: hidden;
+}
+.bar > span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+
+/* ---- hot takes */
+.hotList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.hotItem {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.hotItem:last-child {
+  border-bottom: 0;
+}
+.hotHead {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+}
+.hotPseudo {
+  font-weight: 700;
+  text-decoration: none;
+}
+.hotPseudo:hover,
+.hotPseudo:focus-visible {
+  text-decoration: underline;
+}
+.hotCaption {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.tone_ok {
+  color: var(--ok);
+  background: var(--ok-soft);
+  border-color: transparent;
+}
+.tone_err {
+  color: var(--err);
+  background: var(--err-soft);
+  border-color: transparent;
+}
+.tone_muted {
+  color: var(--muted);
+}

@@ -1,0 +1,335 @@
+/* Score components: leaderboard table, player header, explained team/question rows, hot takes. */
+
+/* ---- chips (state of a team, an answer or a hot take) */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1.4;
+}
+.chipOk {
+  background: var(--ok-soft);
+  color: var(--ok);
+}
+.chipWarn {
+  background: var(--warn-soft);
+  color: var(--warn);
+}
+.chipErr {
+  background: var(--err-soft);
+  color: var(--err);
+}
+.chipNeutral {
+  background: var(--surface-2);
+  color: var(--muted);
+  border: 1px solid var(--line);
+}
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.tag {
+  margin-left: 6px;
+  vertical-align: middle;
+  font-weight: 700;
+}
+.incomplete {
+  color: var(--warn);
+  background: var(--warn-soft);
+  border-color: transparent;
+}
+
+/* ---- leaderboard table */
+.board {
+  table-layout: auto;
+}
+.board tbody th {
+  /* Row headers (pseudo) look like regular cells, not like the column headers. */
+  font-size: inherit;
+  text-transform: none;
+  letter-spacing: normal;
+  color: inherit;
+  font-weight: inherit;
+}
+.board td,
+.board th {
+  vertical-align: middle;
+}
+.rank {
+  width: 2.25rem;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 1.15rem;
+}
+.podium {
+  color: var(--accent);
+}
+.player {
+  overflow-wrap: anywhere;
+}
+.pseudo {
+  font-weight: 700;
+  text-decoration: none;
+}
+.pseudo:hover {
+  text-decoration: underline;
+}
+.pseudo:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+.sub {
+  display: block;
+  font-size: 0.78rem;
+  color: var(--muted);
+  line-height: 1.35;
+}
+.points {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 1.35rem;
+  white-space: nowrap;
+}
+.playableHead {
+  width: 5.5rem;
+  white-space: normal;
+  line-height: 1.2;
+}
+.playable {
+  color: var(--muted);
+}
+.me {
+  background: var(--accent-soft);
+}
+.me > td:first-child {
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+/* ---- player header */
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.headTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.headWho {
+  min-width: 0;
+}
+.pseudoTitle {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.headRank {
+  margin: 4px 0 0;
+  color: var(--muted);
+}
+.headRank strong {
+  color: var(--ink);
+}
+.total {
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  font-family: var(--font-display);
+  font-weight: 800;
+  color: var(--accent);
+  white-space: nowrap;
+}
+.totalValue {
+  font-size: 2.6rem;
+  line-height: 1;
+}
+.totalUnit {
+  font-size: 1rem;
+  text-transform: uppercase;
+}
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+.tiles > div {
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 8px 4px;
+  text-align: center;
+}
+.tiles dt {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+}
+.tiles dd {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 1.5rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- explained lists (teams, questions) */
+.confSection + .confSection {
+  margin-top: 20px;
+}
+.sectionHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.confTitle {
+  margin: 0;
+  font-size: 1rem;
+}
+.subtotal {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 1.1rem;
+}
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+.item:last-child {
+  border-bottom: 0;
+}
+.itemMain {
+  display: grid;
+  grid-template-columns: 1.5rem 28px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+.itemMainBare {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+.pos {
+  font-family: var(--font-display);
+  font-weight: 800;
+  color: var(--muted);
+  text-align: right;
+}
+.info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.name {
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+.qLabel {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+.nums {
+  font-size: 0.8rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.nums strong {
+  color: var(--ink);
+}
+.score {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 1.35rem;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+.score small {
+  margin-left: 2px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+.scoreMuted {
+  color: var(--muted);
+  font-size: 1.05rem;
+}
+
+/* "Le calcul" disclosure under each team */
+.explain {
+  font-size: 0.82rem;
+}
+.explain summary {
+  width: fit-content;
+  cursor: pointer;
+  color: var(--accent);
+  font-weight: 600;
+}
+.explain summary:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+.explain ul {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  color: var(--muted);
+}
+.formula {
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+  color: var(--ink);
+}
+
+/* Hot take box */
+.hotTake {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid color-mix(in srgb, var(--fire) 35%, transparent);
+  background: color-mix(in srgb, var(--fire) 6%, transparent);
+}
+.caption {
+  margin: 0;
+  font-weight: 700;
+  font-size: 0.9rem;
+  overflow-wrap: anywhere;
+}
+.detail {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+/* On wider screens, details line up under the team name instead of the rank column. */
+@media (min-width: 480px) {
+  .indent {
+    margin-left: calc(1.5rem + 28px + 16px);
+  }
+}

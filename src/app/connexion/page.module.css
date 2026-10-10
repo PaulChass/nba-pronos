@@ -1,0 +1,36 @@
+.page {
+  max-width: 440px;
+  margin: 0 auto;
+  padding-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.head {
+  text-align: center;
+}
+
+.kicker {
+  margin: 0 0 6px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 0.85rem;
+  color: var(--accent);
+}
+
+.title {
+  font-size: clamp(2.2rem, 10vw, 3rem);
+  margin-bottom: 8px;
+}
+
+.lead {
+  margin: 0;
+}
+
+.foot {
+  text-align: center;
+  margin: 0;
+}

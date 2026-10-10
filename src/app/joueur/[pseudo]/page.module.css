@@ -1,0 +1,26 @@
+.sectionHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.sectionHead h2 {
+  margin-bottom: 0.3em;
+}
+.sectionTotal {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 1.35rem;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+.private {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+}
+.private p {
+  margin: 0;
+}

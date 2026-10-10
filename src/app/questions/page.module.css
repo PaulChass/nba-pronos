@@ -1,0 +1,12 @@
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.header h1,
+.header p {
+  margin: 0;
+}
+.lead {
+  font-size: 1rem;
+}

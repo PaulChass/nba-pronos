@@ -1,0 +1,255 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding-bottom: 24px;
+}
+
+.lead {
+  margin: 0;
+}
+.lead strong {
+  color: var(--ink);
+}
+
+/* ---- checklist */
+.checklist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.item {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 12px;
+  align-items: start;
+}
+
+.icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  font-weight: 800;
+  font-size: 1.05rem;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  color: var(--muted);
+}
+.item[data-status='ok'] .icon {
+  background: var(--ok-soft);
+  border-color: transparent;
+  color: var(--ok);
+}
+.item[data-status='err'] .icon {
+  background: var(--err-soft);
+  border-color: transparent;
+  color: var(--err);
+}
+.item[data-status='todo'] .icon {
+  background: var(--warn-soft);
+  border-color: transparent;
+  color: var(--warn);
+}
+.item[data-status='optional'] .icon {
+  background: color-mix(in srgb, var(--fire) 12%, transparent);
+  border-color: transparent;
+  font-size: 0.95rem;
+}
+
+.itemBody {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.itemBody p {
+  margin: 0;
+}
+
+.itemTitle {
+  margin: 4px 0 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 1.25rem;
+  text-transform: uppercase;
+}
+.meta {
+  font-family: var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.errors {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--err);
+  font-size: 0.92rem;
+}
+.errors li + li {
+  margin-top: 2px;
+}
+
+.fix {
+  align-self: flex-start;
+  color: var(--accent);
+  font-weight: 700;
+  text-decoration: none;
+}
+.fix:hover {
+  text-decoration: underline;
+}
+
+.htList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.htList li {
+  overflow-wrap: anywhere;
+}
+
+.htWarn p {
+  margin: 0 0 4px;
+  font-weight: 600;
+}
+.htWarn ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+/* ---- grid summary */
+.confs {
+  display: grid;
+  gap: 12px;
+}
+@media (min-width: 640px) {
+  .confs {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.confCard {
+  padding: 8px 10px;
+  min-width: 0;
+}
+
+.table {
+  table-layout: auto;
+}
+.table td {
+  padding: 6px;
+  vertical-align: middle;
+}
+
+.caption {
+  caption-side: top;
+  text-align: left;
+  padding: 6px 6px 4px;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 1.05rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.east {
+  color: var(--east);
+}
+.west {
+  color: var(--west);
+}
+
+.rank {
+  width: 2.2em;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.team {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.team :global(.team-logo) {
+  width: 24px;
+  height: 24px;
+}
+.teamName {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Visual cut lines: end of the direct playoff spots (6) and of the play-in (10). */
+.cutPlayoffs td {
+  border-bottom: 2px solid color-mix(in srgb, var(--ink) 30%, transparent);
+}
+.cutPlayIn td {
+  border-bottom: 2px dashed color-mix(in srgb, var(--ink) 22%, transparent);
+}
+
+.bad {
+  color: var(--err);
+  font-weight: 700;
+}
+
+/* ---- answers */
+.answers {
+  margin: 0;
+  padding: 4px 16px;
+}
+.answer {
+  display: grid;
+  gap: 2px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+.answer:last-child {
+  border-bottom: 0;
+}
+.answer dt {
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+.answer dd {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+@media (min-width: 560px) {
+  .answer {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 12px;
+    align-items: center;
+  }
+  .answer dd {
+    justify-content: flex-end;
+    text-align: right;
+  }
+}
+
+/* ---- invite */
+.invite h2 {
+  margin-bottom: 6px;
+}
+.invite > p {
+  margin: 0 0 12px;
+}

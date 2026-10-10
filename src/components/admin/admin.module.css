@@ -1,0 +1,176 @@
+/* Admin page (Paul only): plain and robust, mobile-first. */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.intro p {
+  margin: 0;
+}
+
+.jump {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+  /* the sticky top bar wraps on two lines on phones */
+  scroll-margin-top: 120px;
+}
+.section > h2 {
+  margin: 0;
+}
+
+.values {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 6px 12px;
+  margin: 0;
+  font-size: 0.92rem;
+}
+.values dt {
+  color: var(--muted);
+  font-weight: 600;
+}
+.values dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+/* ---- players */
+.tableWrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  /* bleed to the card edges so the table can use the full width on phones */
+  margin: 0 -16px;
+  padding: 0 16px;
+}
+.tableWrap:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  outline-offset: -3px;
+}
+.playersTable {
+  min-width: 560px;
+}
+.playersTable th[scope='row'] {
+  font-weight: 700;
+  white-space: nowrap;
+}
+.playersTable td {
+  white-space: nowrap;
+}
+.yes {
+  color: var(--ok);
+  font-weight: 800;
+}
+.no {
+  color: var(--err);
+  font-weight: 800;
+}
+
+.pinBox {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+.pinBox h3,
+.pinBox p {
+  margin: 0;
+}
+.pinForm {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.pinResult {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.pinResult p {
+  margin: 0;
+}
+.pin {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 1.6rem;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  white-space: nowrap;
+}
+
+/* ---- question results */
+.questions {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.question {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  scroll-margin-top: 120px;
+}
+.question h3,
+.question p {
+  margin: 0;
+}
+.highlight {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+  background: color-mix(in srgb, var(--accent-soft) 60%, var(--surface-2));
+}
+.qHead {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+}
+.qHead h3 {
+  font-family: var(--font-display);
+  text-transform: uppercase;
+}
+
+.resultForm {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+}
+@media (min-width: 560px) {
+  .fields {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+}
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}

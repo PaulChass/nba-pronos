@@ -1,0 +1,57 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 16px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.hint {
+  margin: 0;
+}
+
+.pin {
+  font-size: 1.3rem;
+  letter-spacing: 0.4em;
+  font-variant-numeric: tabular-nums;
+}
+
+.pin::placeholder {
+  letter-spacing: normal;
+}
+
+.toggle {
+  align-self: flex-start;
+  margin-top: -6px;
+  color: var(--muted);
+}
+
+.toggle:hover {
+  color: var(--ink);
+}
+
+.submit {
+  width: 100%;
+  min-height: 50px;
+  font-size: 1.02rem;
+}
+
+.error {
+  margin: 0;
+}
+
+.error:focus {
+  outline: 2px solid var(--err);
+  outline-offset: 2px;
+}

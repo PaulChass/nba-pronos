@@ -1,0 +1,129 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+/* 15 or 30 logo tiles; 5 per row at 375px. */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(54px, 1fr));
+  gap: 6px;
+}
+.tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-height: 60px;
+  padding: 6px 2px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  cursor: pointer;
+  font-weight: 600;
+  transition: border-color 0.15s, background 0.15s;
+}
+.tile:hover {
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--line));
+}
+.tile[data-checked='true'] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+.abbr {
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  letter-spacing: 0.04em;
+  line-height: 1;
+}
+.tile[data-checked='true'] .abbr {
+  color: var(--accent);
+}
+
+/* The native radio stays focusable and announced, just invisible. */
+.radio {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  pointer-events: none;
+}
+.tile:has(.radio:focus-visible),
+.champTile:has(.radio:focus-visible) {
+  outline: 3px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  outline-offset: 2px;
+}
+
+.current {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 0.9rem;
+}
+
+/* Champion: two big buttons, one per finalist. */
+.champGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.champTile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 132px;
+  padding: 12px 8px;
+  border-radius: var(--radius);
+  border: 2px solid var(--line);
+  background: var(--surface-2);
+  text-align: center;
+  cursor: pointer;
+}
+.champTile[data-checked='true'] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.champTile[data-disabled='true'] {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+.champEmpty {
+  border-style: dashed;
+  cursor: default;
+}
+.champLogo {
+  width: 56px;
+  height: 56px;
+}
+.champName {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 1.3rem;
+  text-transform: uppercase;
+  line-height: 1.05;
+  overflow-wrap: anywhere;
+}
+.champTile[data-checked='true'] .champName {
+  color: var(--accent);
+}
+.champQ {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 2.2rem;
+  line-height: 1;
+  color: var(--muted);
+}
+.root p {
+  margin: 0;
+}

@@ -250,7 +250,7 @@ export function parseHotTakes(input: unknown): HotTakes | null {
   const { teams, questions } = input as { teams?: unknown; questions?: unknown }
   if (!Array.isArray(teams) || !Array.isArray(questions)) return null
   if (!teams.every((t) => typeof t === 'string' && ALL_ABBRS.has(t))) return null
-  if (!questions.every((q) => typeof q === 'string' && q in QUESTION_BY_ID)) return null
+  if (!questions.every((q) => typeof q === 'string' && Object.hasOwn(QUESTION_BY_ID, q))) return null
   return { teams: [...new Set(teams as string[])], questions: [...new Set(questions as QuestionId[])] }
 }
 

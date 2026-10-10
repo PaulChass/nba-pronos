@@ -1,0 +1,68 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  max-width: 100%;
+}
+
+.panel {
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.title {
+  margin: 0;
+  font: 800 1.15rem var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+/* The share image is 4:5; a small preview is enough to recognise it. */
+.preview {
+  display: block;
+  width: 100%;
+  max-width: 180px;
+  aspect-ratio: 4 / 5;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line);
+  align-self: center;
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.actions > * {
+  width: 100%;
+  justify-content: flex-start;
+}
+
+/* Stays in the DOM even when empty so screen readers announce the change. */
+.live {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--ok);
+}
+
+.manual {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.panel p {
+  margin: 0;
+}

@@ -1,0 +1,34 @@
+.tabs {
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.tab {
+  min-width: max-content;
+  padding: 0 10px;
+  white-space: nowrap;
+}
+@media (max-width: 400px) {
+  .tab {
+    padding: 0 6px;
+    font-size: 0.85rem;
+  }
+}
+
+.tableCard {
+  padding: 4px 10px;
+  overflow-x: auto; /* safety net for very long pseudos: never scroll the page itself */
+}
+
+.closed {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+}
+.closedTitle {
+  margin: 0;
+  font-size: 1.35rem;
+}
+.closed p {
+  margin: 0;
+}

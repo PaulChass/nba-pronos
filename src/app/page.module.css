@@ -1,0 +1,190 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 36px;
+  padding-bottom: 24px;
+}
+
+/* ---- hero */
+.hero {
+  position: relative;
+  text-align: center;
+  padding: 28px 0 8px;
+  isolation: isolate;
+}
+/* Soft orange glow + a half-court arc behind the title. */
+.hero::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: -16px -16px auto;
+  height: 340px;
+  background:
+    radial-gradient(circle at 50% -40px, transparent 159px, color-mix(in srgb, var(--accent) 22%, transparent) 160px, transparent 162px),
+    radial-gradient(ellipse at 50% 0, var(--accent-soft), transparent 70%);
+  pointer-events: none;
+}
+
+.kicker {
+  margin: 0 0 10px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--accent);
+}
+
+.title {
+  margin: 0;
+  font-size: clamp(3.1rem, 16vw, 5.6rem);
+  line-height: 0.88;
+  letter-spacing: -0.005em;
+}
+.season {
+  display: block;
+  color: var(--accent);
+}
+
+.pitch {
+  max-width: 34ch;
+  margin: 16px auto 0;
+  font-size: 1.1rem;
+  color: var(--muted);
+}
+
+.clock {
+  margin: 28px auto 0;
+  padding: 18px 16px 16px;
+  max-width: 460px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+}
+.clockLabel {
+  margin: 0 0 6px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--muted);
+}
+.lockLine {
+  margin: 10px 0 0;
+  font-size: 0.95rem;
+  color: var(--muted);
+}
+.lockLine strong {
+  color: var(--ink);
+}
+
+.hello {
+  margin: 20px 0 0;
+  font-weight: 600;
+}
+
+.ctas {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 20px auto 0;
+  max-width: 460px;
+}
+.cta {
+  min-height: 52px;
+  padding: 0 26px;
+  font-size: 1.05rem;
+}
+
+@media (min-width: 520px) {
+  .ctas {
+    flex-direction: row;
+    justify-content: center;
+  }
+}
+
+/* ---- steps */
+.stepsTitle {
+  text-align: center;
+  margin-bottom: 14px;
+}
+
+.steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.step {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-areas:
+    'num body'
+    'num pts';
+  column-gap: 14px;
+  row-gap: 8px;
+  align-items: start;
+}
+.stepNum {
+  grid-area: num;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 3.2rem;
+  line-height: 0.85;
+  color: var(--accent);
+  min-width: 1.1ch;
+  text-align: center;
+}
+.stepBody {
+  grid-area: body;
+  min-width: 0;
+}
+.stepTitle {
+  margin: 0 0 2px;
+  font-size: 1.3rem;
+  text-transform: uppercase;
+}
+.stepText {
+  margin: 0;
+  color: var(--muted);
+}
+.stepPts {
+  grid-area: pts;
+  justify-self: start;
+}
+
+@media (min-width: 680px) {
+  .steps {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .step {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      'num'
+      'body'
+      'pts';
+  }
+  .stepNum {
+    text-align: left;
+  }
+}
+
+.footnote {
+  margin: 16px 0 0;
+  text-align: center;
+  font-size: 0.92rem;
+  color: var(--muted);
+}
+.rulesLink {
+  color: var(--accent);
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.rulesLink:hover {
+  text-decoration: underline;
+}

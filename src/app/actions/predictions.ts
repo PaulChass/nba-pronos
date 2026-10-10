@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { getCurrentUser } from '@/lib/auth'
-import { savePrediction, type SaveResult } from '@/lib/predictions'
+import { getOwnPrediction, savePrediction, type SaveResult } from '@/lib/predictions'
 import { parseAnswers, parseGrid, parseHotTakes } from '@/lib/validation'
 
 const notSignedIn: SaveResult = { ok: false, error: 'Session expirée : reconnecte-toi.' }
@@ -28,10 +28,18 @@ export async function saveAnswersAction(input: unknown): Promise<SaveResult> {
   return res
 }
 
-export async function saveHotTakesAction(input: unknown): Promise<SaveResult> {
+/**
+ * Saves the team and/or question hot takes. A missing side keeps what is stored, so the grid page
+ * (teams) and the questions page (questions) never overwrite each other.
+ */
+export async function saveHotTakesAction(input: { teams?: unknown; questions?: unknown }): Promise<SaveResult> {
   const user = await getCurrentUser()
   if (!user) return notSignedIn
-  const hotTakes = parseHotTakes(input)
+  const stored = (await getOwnPrediction(user.id)).hotTakes
+  const hotTakes = parseHotTakes({
+    teams: input?.teams ?? stored.teams,
+    questions: input?.questions ?? stored.questions,
+  })
   if (!hotTakes) return { ok: false, error: 'Hot takes illisibles.' }
   const res = await savePrediction(user.id, { hotTakes })
   if (res.ok) revalidatePath('/recap')

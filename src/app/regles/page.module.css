@@ -1,0 +1,361 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  padding-bottom: 24px;
+}
+/* Spacing comes from the flex gaps, not from paragraph margins. */
+.page p {
+  margin: 0;
+}
+
+/* ---- header */
+.hero {
+  text-align: center;
+  padding-top: 12px;
+}
+.hero .kicker {
+  margin-bottom: 8px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--accent);
+}
+.hero .lead {
+  max-width: 40ch;
+  margin: 0 auto;
+  color: var(--muted);
+  font-size: 1.05rem;
+}
+
+.totals {
+  list-style: none;
+  margin: 20px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.total {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  height: 100%;
+  padding: 12px 6px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  text-decoration: none;
+}
+.total:hover {
+  border-color: var(--accent);
+}
+.totalNum {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: clamp(1.7rem, 8vw, 2.3rem);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.totalLabel {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  text-align: center;
+}
+.totalFire .totalNum {
+  color: var(--fire);
+}
+
+.noAi {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+.noAiIcon {
+  font-size: 1.4rem;
+  line-height: 1.2;
+}
+
+/* ---- table of contents */
+.toc {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.toc a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  font-weight: 600;
+  font-size: 0.88rem;
+  text-decoration: none;
+}
+.toc a:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.toc a:focus-visible,
+.total:focus-visible,
+.section a:focus-visible,
+.details summary:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  outline-offset: 2px;
+}
+
+/* ---- sections */
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  /* Keep anchored headings clear of the sticky top bar (it wraps to two rows on phones). */
+  scroll-margin-top: 112px;
+}
+.section h3 {
+  margin: 6px 0 0;
+}
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.section .head h2,
+.section .head h3 {
+  margin: 0;
+}
+.section a {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.rules {
+  margin: 0;
+  padding-left: 1.3em;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.rules li::marker {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+/* ---- worked examples */
+.example {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--accent);
+}
+.example .exampleLabel {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--accent);
+}
+.calc {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+}
+.calc > div {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  padding: 6px 0;
+  border-bottom: 1px dashed var(--line);
+}
+.calc dt {
+  color: var(--muted);
+  font-weight: 600;
+}
+.calc dd {
+  margin: 0;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.calc > .calcTotal {
+  border-bottom: 0;
+}
+.calc > .calcTotal dt {
+  color: var(--ink);
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.example .caption {
+  font-weight: 700;
+}
+
+/* ---- tables */
+.tableWrap {
+  /* A table scrolls inside its box rather than the page on very narrow screens. */
+  max-width: 100%;
+  overflow-x: auto;
+}
+.qTable td,
+.qTable th {
+  vertical-align: top;
+}
+.qNum {
+  width: 2em;
+}
+.when {
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+.qTable tfoot th,
+.qTable tfoot td {
+  border-bottom: 0;
+  color: var(--ink);
+  font-size: 0.92rem;
+}
+.projTable {
+  background: var(--surface);
+}
+
+/* ---- hot takes */
+.htCard {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border-top: 3px solid var(--fire);
+}
+.htCard .htStep {
+  font-weight: 500;
+}
+
+/* ---- leaderboards */
+.boards {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.boards li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line);
+  background: var(--surface);
+}
+.boards strong {
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  font-size: 1.05rem;
+}
+.boards .boardMain {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+@media (min-width: 560px) {
+  .boards {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+/* ---- disclosures (formula, lines) */
+.details {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  padding: 0 14px;
+}
+.details[open] {
+  padding-bottom: 14px;
+}
+.page .details > * + * {
+  margin-top: 10px;
+}
+.details summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  font-weight: 700;
+  list-style: none;
+}
+.details summary::-webkit-details-marker {
+  display: none;
+}
+.details summary::before {
+  content: '▸';
+  margin-right: 8px;
+  color: var(--accent);
+  transition: transform 0.15s;
+}
+.details[open] summary::before {
+  transform: rotate(90deg);
+}
+.details .formula {
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
+}
+
+/* ---- bookmaker lines */
+.linesGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+}
+@media (min-width: 640px) {
+  .linesGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+.linesCaption {
+  text-align: left;
+  padding-bottom: 6px;
+}
+.linesTable td,
+.linesTable th {
+  padding-top: 5px;
+  padding-bottom: 5px;
+}
+/* Row headers: the team, not a column label. */
+.linesTable .teamTh {
+  font-size: 0.92rem;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--ink);
+}
+.teamCell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.footer {
+  text-align: center;
+}

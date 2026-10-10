@@ -1,0 +1,42 @@
+.countdown {
+  display: inline-flex;
+  align-items: baseline;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  line-height: 1.1;
+}
+
+.sm {
+  padding: 2px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  font-size: 1.05rem;
+}
+
+.lg {
+  font-size: clamp(2.3rem, 11vw, 4rem);
+  line-height: 1;
+}
+
+.days {
+  color: var(--accent);
+}
+
+.sep {
+  margin: 0 0.3em;
+  color: var(--muted);
+}
+
+.done {
+  color: var(--accent);
+  text-transform: uppercase;
+}
+
+.placeholder {
+  visibility: hidden;
+}
