@@ -447,7 +447,7 @@ function BeforeLock() {
           Le consensus sera visible au premier match, {lockLabel(lockAt())}.
         </p>
         <p className="muted">
-          D’ici là, les pronos de chacun restent secrets : personne ne peut copier sur le voisin. Ensuite, tu verras ici
+          D’ici là, les pronos de chacun sont dans ton récap. Ensuite, tu verras ici
           la médiane du groupe pour chaque équipe, les réponses les plus populaires et tous les hot takes, comparés aux
           bookmakers et à la réalité.
         </p>

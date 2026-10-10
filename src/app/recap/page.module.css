@@ -253,3 +253,27 @@
 .invite > p {
   margin: 0 0 12px;
 }
+
+.others {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.other {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+}
+.other:last-child {
+  border-bottom: 0;
+}
+.otherName {
+  font-weight: 700;
+  margin-right: auto;
+}

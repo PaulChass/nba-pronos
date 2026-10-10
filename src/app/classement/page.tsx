@@ -104,8 +104,8 @@ function BeforeLock() {
           Le classement s’ouvre au premier match
         </h2>
         <p className="muted">
-          Les pronos de chacun restent secrets jusqu’au coup d’envoi, {formatLockDate(lockIso)}. Ensuite, le classement se
-          met à jour tout au long de la saison.
+          Les points commencent au coup d’envoi, {formatLockDate(lockIso)}, puis le classement se met à jour tout au long
+          de la saison. En attendant, les pronos des autres sont dans ton récap.
         </p>
         <Countdown lockAt={lockIso} />
         <Link href="/grille" className="btn btn-primary">

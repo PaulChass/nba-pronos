@@ -59,6 +59,56 @@ export async function getOwnPrediction(userId: number): Promise<OwnPrediction> {
   }
 }
 
+export interface PlayerOverview {
+  pseudo: string
+  gridValid: boolean
+  answered: number
+  hotTakes: number
+  lastSavedAt: string | null
+}
+
+/**
+ * Every registered player and how far they got (recap list). Paul's choice (2026-10-10): before
+ * the lock, signed-in players may see each other's predictions — callers must check the viewer is
+ * signed in; the public (signed-out) never sees predictions before the lock.
+ */
+export async function listPlayersOverview(): Promise<PlayerOverview[]> {
+  const rows = await sql()`
+    select u.pseudo, coalesce(p.grid_valid, false) as grid_valid, p.last_saved_at,
+      (select count(*) from jsonb_object_keys(coalesce(p.answers, '{}'::jsonb)))::int as answered,
+      (jsonb_array_length(coalesce(p.hot_takes->'teams', '[]'::jsonb))
+        + jsonb_array_length(coalesce(p.hot_takes->'questions', '[]'::jsonb)))::int as hot_takes
+    from users u left join predictions p on p.user_id = u.id
+    order by u.pseudo_key`
+  return rows.map((r) => ({
+    pseudo: r.pseudo,
+    gridValid: r.grid_valid,
+    answered: r.answered,
+    hotTakes: r.hot_takes,
+    lastSavedAt: r.last_saved_at ? new Date(r.last_saved_at).toISOString() : null,
+  }))
+}
+
+/**
+ * One player's prediction by pseudo (case-insensitive), or null. Before the lock, only for a
+ * signed-in viewer (see listPlayersOverview).
+ */
+export async function getPredictionByPseudo(key: string): Promise<StoredPrediction | null> {
+  const rows = await sql()`
+    select p.user_id, u.pseudo, p.grid, p.answers, p.hot_takes, p.grid_valid, p.last_saved_at
+    from predictions p join users u on u.id = p.user_id
+    where u.pseudo_key = ${key}`
+  const r = rows[0]
+  if (!r) return null
+  return {
+    ...rowToDoc(r),
+    userId: r.user_id,
+    pseudo: r.pseudo,
+    gridValid: r.grid_valid,
+    lastSavedAt: new Date(r.last_saved_at).toISOString(),
+  }
+}
+
 /** Whether the user's saved grid is complete and valid (gates the questions and recap steps). */
 export async function hasValidGrid(userId: number): Promise<boolean> {
   const rows = await sql()`select grid_valid from predictions where user_id = ${userId}`

@@ -149,7 +149,8 @@ export default function RulesPage() {
           ) : (
             <>
               Verrouillage le <strong>{lockDate}</strong> (heure de Paris), au coup d’envoi du premier match. Jusque-là,
-              tu peux tout modifier. Ensuite, plus rien ne bouge et les pronos de tout le monde deviennent publics.
+              tu peux tout modifier, et les joueurs inscrits voient déjà les pronos des autres (dans le récap). Ensuite,
+              plus rien ne bouge.
             </>
           )}
         </p>

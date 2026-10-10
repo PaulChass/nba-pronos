@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { headers } from 'next/headers'
 import Link from 'next/link'
-import { notFound, unstable_rethrow } from 'next/navigation'
+import { notFound, redirect, unstable_rethrow } from 'next/navigation'
 import { Countdown, formatLockDate } from '@/components/Countdown'
 import { ShareButton } from '@/components/ShareButton'
 import { AnswersReadOnly, GridReadOnly } from '@/components/score/PredictionReadOnly'
@@ -14,14 +14,14 @@ import { SCORING } from '@/config/scoring'
 import { isLocked, lockAt } from '@/config/season'
 import { cleanPseudo, getCurrentUser, pseudoKey, type User } from '@/lib/auth'
 import { getLeaderboard, getPlayerCard, type Leaderboard, type PlayerCard } from '@/lib/leaderboard'
-import { getOwnPrediction } from '@/lib/predictions'
+import { getOwnPrediction, getPredictionByPseudo } from '@/lib/predictions'
 import type { TeamAbbr, TeamStanding } from '@/lib/types'
 import { gridStatus } from '@/lib/validation'
 import styles from './page.module.css'
 
 type Props = { params: Promise<{ pseudo: string }> }
 
-// Rendered per request: private before the lock, live scores after.
+// Rendered per request: players only before the lock, live scores after.
 export const dynamic = 'force-dynamic'
 
 /** Route params may arrive percent-encoded; pseudos never contain "%", so decoding is safe. */
@@ -35,8 +35,8 @@ function pseudoFromParam(raw: string): string {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const pseudo = pseudoFromParam((await params).pseudo)
-  // Before the lock, say nothing that would confirm who has played.
-  if (!isLocked()) return { title: 'Mes pronos' }
+  // Before the lock, say nothing (link previews are public) that would confirm who has played.
+  if (!isLocked()) return { title: 'Pronos' }
   try {
     const [player, board] = await Promise.all([getPlayerCard(pseudo), getLeaderboard()])
     if (!player) return { title: 'Joueur introuvable' }
@@ -57,9 +57,11 @@ export default async function PlayerPage({ params }: Props) {
   const isOwner = !!user && pseudoKey(user.pseudo) === pseudoKey(pseudo)
 
   if (!isLocked()) {
-    // Predictions are private until the first tip-off: only their owner may look.
-    if (!user || !isOwner) notFound()
-    return <BeforeLock user={user} />
+    // Before the first tip-off, predictions are for signed-in players only (Paul's choice: they
+    // can see each other's); the public sees nothing until the lock.
+    if (!user) redirect('/connexion?mode=connexion')
+    if (isOwner) return <BeforeLock user={user} />
+    return <OtherBeforeLock pseudo={pseudo} />
   }
 
   let data: [PlayerCard | null, Leaderboard]
@@ -185,8 +187,8 @@ async function BeforeLock({ user }: { user: User }) {
       <h1>Mes pronos</h1>
       <div className={`card ${styles.private}`}>
         <p>
-          Tes pronos restent secrets jusqu’au premier match, {formatLockDate(lockIso)}. Ensuite, tout le monde pourra les
-          voir, et tes points s’afficheront ici.
+          Les autres joueurs peuvent déjà voir tes pronos. Tu peux les modifier jusqu’au premier match,{' '}
+          {formatLockDate(lockIso)} ; ensuite tes points s’afficheront ici.
         </p>
         <Countdown lockAt={lockIso} />
         <div className="row">
@@ -213,6 +215,38 @@ async function BeforeLock({ user }: { user: User }) {
       <section className="card" aria-labelledby="own-answers-title">
         <h2 id="own-answers-title">Mes réponses</h2>
         <AnswersReadOnly answers={own.answers} hotTakes={own.hotTakes} />
+      </section>
+    </div>
+  )
+}
+
+/** Another player's predictions before the lock: read-only, no points yet. */
+async function OtherBeforeLock({ pseudo }: { pseudo: string }) {
+  const pred = await getPredictionByPseudo(pseudoKey(pseudo))
+  if (!pred) notFound()
+  const status = gridStatus(pred.grid)
+  const lockIso = lockAt().toISOString()
+  return (
+    <div className="stack">
+      <h1>Pronos de {pred.pseudo}</h1>
+      <p className="small muted">
+        Encore modifiables jusqu’au premier match, {formatLockDate(lockIso)}. Dernière modification :{' '}
+        {parisDateTime(pred.lastSavedAt)}. <Link href="/recap">Retour au récap</Link>
+      </p>
+      {!status.valid && (
+        <p className="notice notice-warn" role="status">
+          {pred.pseudo} n’a pas encore fini sa grille.
+        </p>
+      )}
+
+      <section className="card" aria-labelledby="other-grid-title">
+        <h2 id="other-grid-title">Grille</h2>
+        <GridReadOnly grid={pred.grid} hotTakes={pred.hotTakes} />
+      </section>
+
+      <section className="card" aria-labelledby="other-answers-title">
+        <h2 id="other-answers-title">Réponses</h2>
+        <AnswersReadOnly answers={pred.answers} hotTakes={pred.hotTakes} />
       </section>
     </div>
   )

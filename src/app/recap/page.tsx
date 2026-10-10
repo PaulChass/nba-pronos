@@ -10,7 +10,7 @@ import { isLocked, lockAt, SEASON } from '@/config/season'
 import { getCurrentUser } from '@/lib/auth'
 import { answerLabel, answerLookup, PLAYER_BY_ID, TEAM_BY_ABBR } from '@/lib/data'
 import { getQuestionOdds } from '@/lib/odds'
-import { getOwnPrediction } from '@/lib/predictions'
+import { getOwnPrediction, listPlayersOverview } from '@/lib/predictions'
 import type { Conf, QuestionId } from '@/lib/types'
 import { answersErrors, CONFS, gridStatus, hotTakesErrors } from '@/lib/validation'
 import styles from './page.module.css'
@@ -272,11 +272,13 @@ export default async function RecapPage() {
         </dl>
       </section>
 
+      <OthersSection selfPseudo={user.pseudo} />
+
       <section aria-labelledby="recap-invite" className={`card ${styles.invite}`}>
         <h2 id="recap-invite">Invite tes potes</h2>
         <p className="muted">
-          Plus on est nombreux, plus le classement est drôle. Seul le lien du site est partagé : tes
-          pronos restent secrets jusqu’au premier match.
+          Plus on est nombreux, plus le classement est drôle. Seul le lien du site est partagé ; une fois inscrits, tes
+          potes verront tes pronos ici, comme tu vois les leurs.
         </p>
         <InviteButton />
       </section>
@@ -310,5 +312,36 @@ function CheckItem({
         {children}
       </div>
     </li>
+  )
+}
+
+/** Everyone else and how far they got, with a link to their grid and answers. */
+async function OthersSection({ selfPseudo }: { selfPseudo: string }) {
+  const others = (await listPlayersOverview()).filter((p) => p.pseudo !== selfPseudo)
+  return (
+    <section aria-labelledby="recap-others" className="card">
+      <h2 id="recap-others">Les pronos des autres</h2>
+      {others.length === 0 ? (
+        <p className="muted">Personne d’autre n’est inscrit pour l’instant : invite tes potes !</p>
+      ) : (
+        <>
+          <p className="muted small">
+            Touche un pseudo pour voir sa grille et ses réponses. Tout reste modifiable jusqu’au premier match.
+          </p>
+          <ul className={styles.others}>
+            {others.map((p) => (
+              <li key={p.pseudo} className={styles.other}>
+                <Link href={`/joueur/${encodeURIComponent(p.pseudo)}`} className={styles.otherName}>
+                  {p.pseudo}
+                </Link>
+                <span className={`badge ${p.gridValid ? '' : 'muted'}`}>{p.gridValid ? 'Grille ✓' : 'Grille en cours'}</span>
+                <span className="badge">{p.answered}/{QUESTIONS.length} réponses</span>
+                {p.hotTakes > 0 && <span className="badge badge-fire">🔥 {p.hotTakes}</span>}
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+    </section>
   )
 }
