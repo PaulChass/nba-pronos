@@ -21,6 +21,7 @@ import {
   sameMembers,
   sortConfByWins,
   stepWins,
+  winsInConf,
   totalLabel,
   withWins,
   type GridTeam,
@@ -606,6 +607,10 @@ export function GridEditor({
             <span className={`${styles.totalNum} tabular`}>{formatInt(status.total)}</span>
             <span className={`${styles.totalMax} tabular`}> / {formatInt(SEASON.totalWins)}</span>
             <span className={`${styles.delta} ${styles[`tone_${total.tone}`]}`}>{total.text}</span>
+            <span className={`${styles.confTotals} tabular`}>
+              Est <strong>{formatInt(winsInConf(grid, 'E'))}</strong> V · Ouest{' '}
+              <strong>{formatInt(winsInConf(grid, 'W'))}</strong> V
+            </span>
           </p>
           {status.valid ? (
             <button

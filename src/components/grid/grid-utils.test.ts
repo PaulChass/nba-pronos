@@ -12,6 +12,7 @@ import {
   sortConfByWins,
   stepWins,
   totalLabel,
+  winsInConf,
   withWins,
 } from './grid-utils.ts'
 
@@ -89,4 +90,13 @@ test('reclassTeam moves a team just above the first one with fewer wins', () => 
   assert.equal(reclassTeam({ ...grid, order: { ...grid.order, E: [b, a, c, d, ...grid.order.E.slice(4)] } }, 'E', c).order.E[2], c)
   // A team without wins is left alone.
   assert.equal(reclassTeam(grid, 'E', g.order.E[5]), grid)
+})
+
+test('winsInConf sums the filled wins of one conference', () => {
+  const g = emptyGrid()
+  const [a, b] = g.order.E
+  const w = g.order.W[0]
+  const grid = { ...g, wins: { ...g.wins, [a]: 50, [b]: 30, [w]: 41 } }
+  assert.equal(winsInConf(grid, 'E'), 80)
+  assert.equal(winsInConf(grid, 'W'), 41)
 })

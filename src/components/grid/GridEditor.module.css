@@ -377,6 +377,14 @@
   font-weight: 700;
   font-size: 0.9rem;
 }
+.confTotals {
+  flex-basis: 100%;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+.confTotals strong {
+  color: var(--ink);
+}
 .bar :global(.btn[aria-disabled='true']) {
   opacity: 0.5;
   cursor: not-allowed;

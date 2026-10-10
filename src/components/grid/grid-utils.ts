@@ -78,6 +78,11 @@ export function sortConfByWins(grid: GridPrediction, conf: Conf): GridPrediction
 }
 
 /** How many teams of a conference already have a wins value. */
+/** Wins filled so far in one conference (East vs West total in the sticky bar). */
+export function winsInConf(grid: GridPrediction, conf: Conf): number {
+  return grid.order[conf].reduce((sum, abbr) => sum + (grid.wins[abbr] ?? 0), 0)
+}
+
 export function filledInConf(grid: GridPrediction, conf: Conf): number {
   return grid.order[conf].filter((abbr) => grid.wins[abbr] !== null && grid.wins[abbr] !== undefined).length
 }
