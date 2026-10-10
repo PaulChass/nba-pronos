@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { ShareButton } from '@/components/ShareButton'
 import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
 import { saveAnswersAction, saveHotTakesAction } from '@/app/actions/predictions'
@@ -40,6 +41,10 @@ export interface QuestionsFormProps {
   lockAt: string
   /** The user's public page, shown once locked. */
   ownPage: string
+  /** The player's pseudo: the share image is fetched by pseudo. */
+  pseudo: string
+  /** Last save from an earlier visit (ISO), null if never saved: versions the share image. */
+  lastSavedAt: string | null
 }
 
 type SaveState =
@@ -90,6 +95,8 @@ export function QuestionsForm({
   options,
   lockAt,
   ownPage,
+  pseudo,
+  lastSavedAt,
 }: QuestionsFormProps) {
   const router = useRouter()
   // A stored 🔥 can stop qualifying after an odds refresh: never show it as declared.
@@ -542,6 +549,14 @@ export function QuestionsForm({
           <Link href="/grille" className="btn">
             Ma grille
           </Link>
+          <ShareButton
+            pseudo={pseudo}
+            kind="questions"
+            // The image is drawn from the saved answers: wait for the last save.
+            disabled={save.kind === 'pending' || save.kind === 'error' || conflict}
+            disabledReason="Attends la fin de l’enregistrement."
+            cacheKey={(save.kind === 'saved' ? save.at : null) ?? lastSavedAt ?? ''}
+          />
         </div>
       </section>
 

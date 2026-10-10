@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { saveGridAction, saveHotTakesAction } from '@/app/actions/predictions'
 import { formatLockDate } from '@/components/Countdown'
+import { ShareButton } from '@/components/ShareButton'
 import { QUESTION_BY_ID } from '@/config/questions'
 import { SCORING } from '@/config/scoring'
 import { SEASON } from '@/config/season'
@@ -48,6 +49,8 @@ export interface GridEditorProps {
   /** Lock instant (ISO), from lockAt() on the server. */
   lockAt: string
   teams: Record<TeamAbbr, GridTeam>
+  /** The player's pseudo: the share image is fetched by pseudo. */
+  pseudo: string
 }
 
 const AUTOSAVE_MS = 1000
@@ -77,7 +80,7 @@ export function GridEditor({
   const router = useRouter()
   // Static data: frozen at mount so the server re-render after each save (new object
   // identities) does not invalidate every memoized callback and row.
-  const [{ teams }] = useState(props)
+  const [{ teams, pseudo }] = useState(props)
 
   // Props are only the starting point: a save can re-render this route on the server, and the
   // fresh props must not overwrite what the user is typing. A save made elsewhere (another tab or
@@ -559,6 +562,16 @@ export function GridEditor({
         <button type="button" className="btn btn-sm" onClick={sortByWins} disabled={frozen}>
           Trier par victoires
         </button>
+        <ShareButton
+          pseudo={pseudo}
+          kind="grille"
+          // The image is drawn from the saved grid: only once it is complete and saved.
+          disabled={!status.valid || saving || conflict !== null}
+          disabledReason={
+            status.valid ? 'Attends la fin de l’enregistrement.' : 'Termine d’abord ta grille (30 équipes, 1 230 victoires).'
+          }
+          cacheKey={saved?.at ?? ''}
+        />
       </div>
 
       <p className={`small ${styles.hotInfo}`}>

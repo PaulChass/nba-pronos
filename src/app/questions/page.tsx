@@ -66,6 +66,8 @@ export default async function QuestionsPage() {
         }}
         lockAt={lock.toISOString()}
         ownPage={ownPage}
+        pseudo={user.pseudo}
+        lastSavedAt={prediction.lastSavedAt}
       />
     </div>
   )

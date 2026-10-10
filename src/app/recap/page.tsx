@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { formatLockDate } from '@/components/Countdown'
 import { InviteButton } from '@/components/InviteButton'
+import { ShareButton } from '@/components/ShareButton'
 import { QUESTION_BY_ID, QUESTIONS } from '@/config/questions'
 import { SCORING } from '@/config/scoring'
 import { isLocked, lockAt, SEASON } from '@/config/season'
@@ -270,6 +271,17 @@ export default async function RecapPage() {
             </div>
           ))}
         </dl>
+      </section>
+
+      <section aria-labelledby="recap-share" className="card">
+        <h2 id="recap-share">Partager mes pronos</h2>
+        <p className="muted small">
+          Deux images au format téléphone, à envoyer sur WhatsApp ou ailleurs : ta grille, et tes réponses.
+        </p>
+        <div className="row">
+          <ShareButton pseudo={user.pseudo} kind="grille" cacheKey={pred.lastSavedAt ?? ''} />
+          <ShareButton pseudo={user.pseudo} kind="questions" cacheKey={pred.lastSavedAt ?? ''} />
+        </div>
       </section>
 
       <OthersSection selfPseudo={user.pseudo} />

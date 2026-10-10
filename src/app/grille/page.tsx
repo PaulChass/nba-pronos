@@ -65,6 +65,7 @@ export default async function GrillePage() {
         lastSavedAt={own.lastSavedAt}
         lockAt={lock.toISOString()}
         teams={TEAM_INFO}
+        pseudo={user.pseudo}
       />
     </div>
   )

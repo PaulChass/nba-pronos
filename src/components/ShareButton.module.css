@@ -33,7 +33,7 @@
   display: block;
   width: 100%;
   max-width: 180px;
-  aspect-ratio: 4 / 5;
+  aspect-ratio: 9 / 16;
   object-fit: cover;
   border-radius: var(--radius-sm);
   border: 1px solid var(--line);
@@ -65,4 +65,9 @@
 
 .panel p {
   margin: 0;
+}
+
+.wrap :global(.btn[aria-disabled='true']) {
+  opacity: 0.5;
+  cursor: not-allowed;
 }

@@ -109,7 +109,13 @@ export default async function PlayerPage({ params }: Props) {
     <div className="stack">
       <ScoreHeader card={card} nPlayers={board.cards.length} isOwner={isOwner}>
         <div className="row">
-          <ShareButton pseudo={card.pseudo} url={url} />
+          <ShareButton pseudo={card.pseudo} kind="grille" url={url} label={isOwner ? undefined : 'Partager sa grille'} />
+          <ShareButton
+            pseudo={card.pseudo}
+            kind="questions"
+            url={url}
+            label={isOwner ? undefined : 'Partager ses réponses'}
+          />
           <Link href="/regles" className="btn btn-ghost btn-sm">
             Comment sont calculés mes points ?
           </Link>
@@ -199,6 +205,12 @@ async function BeforeLock({ user }: { user: User }) {
             Modifier mes réponses
           </Link>
         </div>
+        {status.valid && (
+          <div className="row">
+            <ShareButton pseudo={user.pseudo} kind="grille" cacheKey={own.lastSavedAt ?? ''} />
+            <ShareButton pseudo={user.pseudo} kind="questions" cacheKey={own.lastSavedAt ?? ''} />
+          </div>
+        )}
       </div>
       {!status.valid && (
         <div className="notice notice-err" role="status">
