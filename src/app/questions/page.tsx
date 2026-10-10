@@ -29,6 +29,8 @@ export default async function QuestionsPage() {
   if (isLocked()) redirect(ownPage)
 
   const [prediction, { odds, asOf }] = await Promise.all([getOwnPrediction(user.id), getQuestionOdds()])
+  // Step 2 opens once the grid (step 1) is complete.
+  if (!prediction.gridValid) redirect('/grille')
   const lock = lockAt()
 
   return (

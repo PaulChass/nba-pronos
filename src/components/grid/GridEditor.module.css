@@ -303,6 +303,20 @@
   outline-offset: 0;
 }
 
+.reclass {
+  margin-left: 4px;
+  padding: 2px 10px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  font: 700 0.8rem var(--font-body);
+  cursor: pointer;
+}
+.reclass:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--err) 12%, transparent);
+}
+
 .msg {
   grid-area: msg;
   margin: 4px 0 2px;

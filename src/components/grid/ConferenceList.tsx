@@ -34,8 +34,6 @@ interface Props {
   conf: Conf
   grid: GridPrediction
   teams: Record<TeamAbbr, GridTeam>
-  lines: Record<TeamAbbr, number>
-  showLines: boolean
   warnings: Partial<Record<TeamAbbr, string>>
   violations: ReadonlySet<TeamAbbr>
   hotOn: ReadonlySet<TeamAbbr>
@@ -50,8 +48,6 @@ export const ConferenceList = memo(function ConferenceList({
   conf,
   grid,
   teams,
-  lines,
-  showLines,
   warnings,
   violations,
   hotOn,
@@ -106,8 +102,6 @@ export const ConferenceList = memo(function ConferenceList({
               isLast={i === order.length - 1}
               warning={warnings[abbr]}
               violationAbove={violations.has(abbr) && i > 0 ? teams[order[i - 1]].shortName : undefined}
-              line={lines[abbr]}
-              showLine={showLines}
               hotOn={hotOn.has(abbr)}
               hotBlocked={hotBlocked[abbr] ?? null}
               locked={locked}

@@ -35,6 +35,7 @@ export default async function RecapPage() {
   if (isLocked()) redirect(`/joueur/${encodeURIComponent(user.pseudo)}`)
 
   const [pred, { odds }] = await Promise.all([getOwnPrediction(user.id), getQuestionOdds()])
+  if (!pred.gridValid) redirect('/grille')
   const { grid, answers, hotTakes } = pred
   const lockDate = formatLockDate(lockAt().toISOString())
 

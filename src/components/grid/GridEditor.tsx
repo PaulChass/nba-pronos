@@ -2,8 +2,9 @@
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { saveGridAction, saveHotTakesAction } from '@/app/actions/predictions'
+import { formatLockDate } from '@/components/Countdown'
 import { QUESTION_BY_ID } from '@/config/questions'
 import { SCORING } from '@/config/scoring'
 import { SEASON } from '@/config/season'
@@ -16,6 +17,7 @@ import {
   formatInt,
   formatSavedAt,
   moveTeam,
+  reclassTeam,
   sameMembers,
   sortConfByWins,
   stepWins,
@@ -44,9 +46,6 @@ export interface GridEditorProps {
   lastSavedAt: string | null
   /** Lock instant (ISO), from lockAt() on the server. */
   lockAt: string
-  /** NORMALIZED_LINES: bookmaker lines rescaled to 1230 wins. */
-  lines: Record<TeamAbbr, number>
-  linesSource: string
   teams: Record<TeamAbbr, GridTeam>
 }
 
@@ -56,6 +55,9 @@ const TEAM_COUNT = 30
 /** Refreshes after the lock: the browser clock may run ahead of the server's, so one is not enough. */
 const LOCK_REFRESH_MS = [0, 2_000, 5_000, 15_000]
 const NETWORK_ERROR = 'Connexion perdue : tes derniers changements ne sont pas enregistrés.'
+/** A save with no answer after this is reported as failed (and can be retried) instead of hanging. */
+const SAVE_TIMEOUT_MS = 20_000
+const TIMEOUT_ERROR = 'Le serveur ne répond pas : tes derniers changements ne sont pas enregistrés.'
 
 interface Message {
   tone: Tone
@@ -74,7 +76,7 @@ export function GridEditor({
   const router = useRouter()
   // Static data: frozen at mount so the server re-render after each save (new object
   // identities) does not invalidate every memoized callback and row.
-  const [{ teams, lines, linesSource }] = useState(props)
+  const [{ teams }] = useState(props)
 
   // Props are only the starting point: a save can re-render this route on the server, and the
   // fresh props must not overwrite what the user is typing. A save made elsewhere (another tab or
@@ -82,8 +84,9 @@ export function GridEditor({
   const [grid, setGrid] = useState(initialGrid)
   const [hotTeams, setHotTeams] = useState(initialHotTeams)
   const [conf, setConf] = useState<Conf>('E')
-  const [showLines, setShowLines] = useState(false)
   const [locked, setLocked] = useState(false)
+  /** "Valider ma grille" clicked: waiting for the last saves before moving on. */
+  const [validating, setValidating] = useState(false)
   /** Server message once a save was refused because the prediction changed elsewhere. */
   const [conflict, setConflict] = useState<string | null>(null)
 
@@ -161,10 +164,18 @@ export function GridEditor({
     async (action: (expectedVersion: number) => Promise<SaveResult>): Promise<SaveResult | null> => {
       if (lockedRef.current || conflictRef.current) return null
       let res: SaveResult
+      let timer: ReturnType<typeof setTimeout> | undefined
       try {
-        res = await action(versionRef.current)
+        res = await Promise.race([
+          action(versionRef.current),
+          new Promise<SaveResult>((resolve) => {
+            timer = setTimeout(() => resolve({ ok: false, error: TIMEOUT_ERROR }), SAVE_TIMEOUT_MS)
+          }),
+        ])
       } catch {
         res = { ok: false, error: NETWORK_ERROR }
+      } finally {
+        clearTimeout(timer)
       }
       if (res.ok) {
         versionRef.current = res.version
@@ -377,6 +388,11 @@ export function GridEditor({
         announce(`${teams[abbr].shortName} : rang ${gridRef.current.order[c].indexOf(abbr) + 1}.`)
       },
       onHot: toggleHot,
+      onReclass: (abbr) => {
+        const c = teams[abbr].conference
+        update((g) => reclassTeam(g, c, abbr))
+        announce(`${teams[abbr].shortName} : reclassée au rang ${gridRef.current.order[c].indexOf(abbr) + 1}.`)
+      },
       onEnter: (abbr) => {
         const list = gridRef.current.order[teams[abbr].conference]
         const nextAbbr = list[list.indexOf(abbr) + 1]
@@ -437,17 +453,21 @@ export function GridEditor({
   }
 
   /**
-   * "Étape suivante": waits for the saves before leaving, so /questions loads the latest version
-   * (otherwise its first save could be refused as a conflict). Stays here if a save failed.
+   * "Valider ma grille": sends what is pending, waits for the saves to land, then moves on to the
+   * questions. Stays here (with the error shown) if a save failed.
    */
-  const goToQuestions = (e: MouseEvent<HTMLAnchorElement>) => {
+  const validate = async () => {
+    if (validating || lockedRef.current || conflictRef.current) return
+    setValidating(true)
     flush()
-    if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || !queue.size) return
-    e.preventDefault()
-    const href = e.currentTarget.getAttribute('href') ?? '/questions'
-    void queue.idle().then(() => {
-      if (!conflictRef.current && !lockedRef.current && !pendingRef.current) router.push(href)
-    })
+    await queue.idle()
+    setValidating(false)
+    if (conflictRef.current || lockedRef.current) return
+    if (pendingRef.current) {
+      showMessage('err', 'Ta grille n’est pas encore enregistrée : touche « Réessayer » puis valide à nouveau.')
+      return
+    }
+    router.push('/questions')
   }
 
   const reload = () => window.location.reload()
@@ -538,21 +558,7 @@ export function GridEditor({
         <button type="button" className="btn btn-sm" onClick={sortByWins} disabled={frozen}>
           Trier par victoires
         </button>
-        <button
-          type="button"
-          className="btn btn-sm"
-          aria-pressed={showLines}
-          onClick={() => setShowLines((v) => !v)}
-        >
-          {showLines ? 'Masquer les lignes Vegas' : 'Voir les lignes Vegas'}
-        </button>
       </div>
-      {showLines && (
-        <p className="small muted">
-          Lignes de victoires ({linesSource}) ramenées à {formatInt(SEASON.totalWins)} victoires au total. Juste un
-          repère : tu n’es pas obligé de les suivre.
-        </p>
-      )}
 
       <p className={`small ${styles.hotInfo}`}>
         <span className="badge badge-fire">
@@ -569,8 +575,6 @@ export function GridEditor({
           conf={conf}
           grid={grid}
           teams={teams}
-          lines={lines}
-          showLines={showLines}
           warnings={status.warnings}
           violations={violations}
           hotOn={hotOn}
@@ -603,6 +607,16 @@ export function GridEditor({
             <span className={`${styles.totalMax} tabular`}> / {formatInt(SEASON.totalWins)}</span>
             <span className={`${styles.delta} ${styles[`tone_${total.tone}`]}`}>{total.text}</span>
           </p>
+          {status.valid ? (
+            <button
+              type="button"
+              className="btn btn-sm btn-primary"
+              onClick={() => void validate()}
+              disabled={frozen || validating}
+            >
+              {validating ? 'Enregistrement…' : 'Valider ma grille'}
+            </button>
+          ) : (
           <button
             type="button"
             className="btn btn-sm btn-primary"
@@ -614,6 +628,7 @@ export function GridEditor({
           >
             Équilibrer
           </button>
+          )}
           <span id="grille-balance-help" className="visually-hidden">
             {balanceBlocked ?? 'Ajuste toutes les équipes proportionnellement pour tomber pile sur 1 230, sans changer l’ordre.'}
           </span>
@@ -629,10 +644,8 @@ export function GridEditor({
         <div className={styles.barMeta}>
           {status.valid ? (
             <span className={styles.valid}>
-              ✓ Grille valide.{' '}
-              <Link href="/questions" onClick={goToQuestions} className={styles.nextLink}>
-                Étape suivante : les questions →
-              </Link>
+              ✓ Grille complète. Tu pourras encore la modifier jusqu’au début de la saison régulière (
+              {formatLockDate(lockAt)}).
             </span>
           ) : (
             <span className="tabular">

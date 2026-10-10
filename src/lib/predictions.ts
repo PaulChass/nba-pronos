@@ -59,6 +59,12 @@ export async function getOwnPrediction(userId: number): Promise<OwnPrediction> {
   }
 }
 
+/** Whether the user's saved grid is complete and valid (gates the questions and recap steps). */
+export async function hasValidGrid(userId: number): Promise<boolean> {
+  const rows = await sql()`select grid_valid from predictions where user_id = ${userId}`
+  return rows[0]?.grid_valid === true
+}
+
 /**
  * Everyone's predictions. Refuses before the lock: other players' predictions (and anything
  * derived from them, like the consensus) must stay hidden until the first tip-off.

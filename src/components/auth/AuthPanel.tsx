@@ -204,7 +204,7 @@ function SignUpForm() {
       <ShowPinButton shown={showPin} onToggle={() => setShowPin((v) => !v)} />
       <p id={`${id}-pin-hint`} className="notice notice-warn">
         <span aria-hidden="true">🔑 </span>
-        Retiens bien ton code : en cas d’oubli, demande à Paul de le réinitialiser.
+        Retiens bien ton code : en cas d’oubli, demande à l’admin de le réinitialiser.
       </p>
       <button type="submit" className={`btn btn-primary ${styles.submit}`} disabled={pending}>
         {pending ? 'Création…' : 'Créer mon compte'}
@@ -246,7 +246,7 @@ function SignInForm() {
         {pending ? 'Connexion…' : 'Me connecter'}
       </button>
       <p id={`${id}-pin-hint`} className={`small muted ${styles.hint}`}>
-        Code oublié ? Demande à Paul de le réinitialiser.
+        Code oublié ? Demande à l’admin de le réinitialiser.
       </p>
     </form>
   )

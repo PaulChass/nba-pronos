@@ -5,6 +5,7 @@ import { QUESTIONS, QUESTIONS_MAX_POINTS } from '@/config/questions'
 import { SCORING } from '@/config/scoring'
 import { isLocked, lockAt, SEASON } from '@/config/season'
 import { getCurrentUser } from '@/lib/auth'
+import { hasValidGrid } from '@/lib/predictions'
 import styles from './page.module.css'
 
 // Derived from the barème so the home page can never contradict the rules page.
@@ -40,6 +41,9 @@ export default async function Home() {
     return null
   })
 
+  // Step 2 (questions) and the recap open once the grid is complete.
+  const gridDone = user && !locked ? await hasValidGrid(user.id).catch(() => false) : false
+
   const ctas: { href: string; label: string }[] = locked
     ? [
         { href: '/classement', label: 'Voir le classement' },
@@ -48,10 +52,12 @@ export default async function Home() {
           : { href: '/connexion?mode=connexion', label: 'Me connecter' },
       ]
     : user
-      ? [
-          { href: '/grille', label: 'Continuer ma grille' },
-          { href: '/recap', label: 'Récap' },
-        ]
+      ? gridDone
+        ? [
+            { href: '/questions', label: 'Mes questions' },
+            { href: '/recap', label: 'Récap' },
+          ]
+        : [{ href: '/grille', label: 'Continuer ma grille' }]
       : [
           { href: '/connexion?mode=inscription', label: 'Créer mon compte' },
           { href: '/connexion?mode=connexion', label: 'J’ai déjà un compte' },
@@ -86,7 +92,11 @@ export default async function Home() {
           </p>
         </div>
 
-        {user && !locked && <p className={styles.hello}>Salut {user.pseudo}, ta grille t’attend !</p>}
+        {user && !locked && (
+          <p className={styles.hello}>
+            Salut {user.pseudo}, {gridDone ? 'ta grille est prête : place aux questions !' : 'ta grille t’attend !'}
+          </p>
+        )}
         {locked && !user && <p className={styles.hello}>Les inscriptions sont fermées pour cette saison.</p>}
 
         <div className={styles.ctas}>

@@ -2,12 +2,15 @@ import Link from 'next/link'
 import { signOutAction } from '@/app/actions/auth'
 import { isLocked } from '@/config/season'
 import { getCurrentUser } from '@/lib/auth'
+import { hasValidGrid } from '@/lib/predictions'
 import styles from './Nav.module.css'
 
 /** Top bar. Before the lock: entry steps. After: leaderboard, consensus. */
 export async function Nav() {
   const user = await getCurrentUser().catch(() => null)
   const locked = isLocked()
+  // Questions and recap open once the grid is complete (step 1 before step 2).
+  const gridDone = user && !locked ? await hasValidGrid(user.id).catch(() => false) : false
   const links = locked
     ? [
         { href: '/classement', label: 'Classement' },
@@ -18,8 +21,12 @@ export async function Nav() {
     : user
       ? [
           { href: '/grille', label: 'Grille' },
-          { href: '/questions', label: 'Questions' },
-          { href: '/recap', label: 'Récap' },
+          ...(gridDone
+            ? [
+                { href: '/questions', label: 'Questions' },
+                { href: '/recap', label: 'Récap' },
+              ]
+            : []),
           { href: '/regles', label: 'Règles' },
         ]
       : [{ href: '/regles', label: 'Règles' }]

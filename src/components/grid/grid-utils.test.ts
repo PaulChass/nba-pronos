@@ -6,6 +6,7 @@ import {
   formatInt,
   formatLine,
   moveTeam,
+  reclassTeam,
   parseWinsInput,
   sameMembers,
   sortConfByWins,
@@ -75,4 +76,17 @@ test('sameMembers ignores order', () => {
   assert.equal(sameMembers(['BOS'], ['BOS', 'NYK']), false)
   assert.equal(sameMembers(['BOS', 'NYK'], ['BOS', 'MIA']), false)
   assert.equal(sameMembers(['BOS', 'BOS'], ['BOS', 'NYK']), false)
+})
+
+test('reclassTeam moves a team just above the first one with fewer wins', () => {
+  const g = emptyGrid()
+  const [a, b, c, d] = g.order.E
+  let grid = { ...g, order: { ...g.order, E: [a, b, c, d, ...g.order.E.slice(4)] } }
+  grid = { ...grid, wins: { ...grid.wins, [a]: 44, [b]: 52, [c]: 44, [d]: 24 } }
+  // b (52) sits under a (44): it goes to the top.
+  assert.deepEqual(reclassTeam(grid, 'E', b).order.E.slice(0, 4), [b, a, c, d])
+  // Equal records stay above it: c (44) goes after a (44), i.e. stays put.
+  assert.equal(reclassTeam({ ...grid, order: { ...grid.order, E: [b, a, c, d, ...grid.order.E.slice(4)] } }, 'E', c).order.E[2], c)
+  // A team without wins is left alone.
+  assert.equal(reclassTeam(grid, 'E', g.order.E[5]), grid)
 })

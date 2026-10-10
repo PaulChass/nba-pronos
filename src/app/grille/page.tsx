@@ -1,8 +1,8 @@
 import type { Metadata } from 'next'
+import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { GridEditor } from '@/components/grid/GridEditor'
 import { formatInt, type GridTeam } from '@/components/grid/grid-utils'
-import { BOOKMAKER_SOURCE, NORMALIZED_LINES } from '@/config/bookmaker-lines'
 import { isLocked, lockAt, SEASON } from '@/config/season'
 import { TEAMS } from '@/data/teams'
 import { getCurrentUser } from '@/lib/auth'
@@ -48,7 +48,7 @@ export default async function GrillePage() {
         <p className={styles.intro}>
           Range les 15 équipes de chaque conférence dans l’ordre que tu prévois, puis donne à chacune son nombre de
           victoires. Le total doit faire exactement <strong>{formatInt(SEASON.totalWins)}</strong> ({TEAMS.length} équipes ×{' '}
-          {SEASON.gamesPerTeam} matchs ÷ 2).
+          {SEASON.gamesPerTeam} matchs ÷ 2). <Link href="/regles#grille">Voir le barème</Link>
         </p>
         <p className="small muted">
           Modifiable jusqu’au {formatDeadline(lock)} (heure de Paris). Tout s’enregistre automatiquement.
@@ -64,8 +64,6 @@ export default async function GrillePage() {
         initialVersion={own.versions.grid}
         lastSavedAt={own.lastSavedAt}
         lockAt={lock.toISOString()}
-        lines={NORMALIZED_LINES}
-        linesSource={BOOKMAKER_SOURCE}
         teams={TEAM_INFO}
       />
     </div>

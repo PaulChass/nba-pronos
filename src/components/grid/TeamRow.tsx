@@ -4,7 +4,7 @@ import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { memo, type CSSProperties, type KeyboardEvent } from 'react'
 import { SEASON } from '@/config/season'
-import { formatLine, parseWinsInput, type GridTeam } from './grid-utils'
+import { parseWinsInput, type GridTeam } from './grid-utils'
 import styles from './GridEditor.module.css'
 
 export interface RowHandlers {
@@ -12,6 +12,8 @@ export interface RowHandlers {
   onStep(abbr: string, delta: number): void
   onMove(abbr: string, delta: -1 | 1): void
   onHot(abbr: string): void
+  /** Moves the team to the place its wins give it (fixes an ordering error). */
+  onReclass(abbr: string): void
   /** Enter in the wins field: jump to the next team. */
   onEnter(abbr: string): void
 }
@@ -26,8 +28,6 @@ interface Props {
   warning?: string
   /** Short name of the team ranked just above when this one has more wins than it. */
   violationAbove?: string
-  line: number
-  showLine: boolean
   hotOn: boolean
   /** Why the 🔥 toggle cannot be switched on right now (null = it can). */
   hotBlocked: string | null
@@ -48,8 +48,6 @@ export const TeamRow = memo(function TeamRow({
   isLast,
   warning,
   violationAbove,
-  line,
-  showLine,
   hotOn,
   hotBlocked,
   locked,
@@ -161,11 +159,6 @@ export const TeamRow = memo(function TeamRow({
         >
           {wins === null ? 'V–D' : `${wins}–${max - wins}`}
         </span>
-        {showLine && (
-          <span className={styles.line} title="Ligne des bookmakers, ramenée à 1 230 victoires">
-            Vegas <strong className="tabular">{formatLine(line)}</strong>
-          </span>
-        )}
       </div>
 
       <div className={styles.arrows}>
@@ -210,7 +203,16 @@ export const TeamRow = memo(function TeamRow({
         <p className={styles.msg}>
           {violationAbove ? (
             <span className={styles.msgErr}>
-              Plus de victoires que l’équipe classée au-dessus ({violationAbove}) : remonte-la ou baisse son total.
+              Plus de victoires que l’équipe classée au-dessus ({violationAbove}).{' '}
+              <button
+                type="button"
+                className={styles.reclass}
+                onClick={() => handlers.onReclass(team.abbr)}
+                disabled={locked}
+                aria-label={`Reclasser ${name} selon ses victoires`}
+              >
+                Reclasser
+              </button>
             </span>
           ) : (
             <span className={styles.msgWarn}>⚠ {warning}</span>

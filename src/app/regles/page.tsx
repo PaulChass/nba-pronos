@@ -595,13 +595,10 @@ export default function RulesPage() {
           ÷ 2). On les ramène donc sur {int(SEASON.totalWins)}, en les multipliant toutes par {factor3}. C’est cette{' '}
           <strong>ligne ramenée</strong> qui sert pour les hot takes et la projection.
         </p>
-        <details className={styles.details} open={locked}>
-          <summary>Voir les lignes Vegas</summary>
-          {!locked && (
-            <p className="muted small">
-              Elles sont masquées par défaut dans la grille pour ne pas influencer ton avis.
-            </p>
-          )}
+        {/* Hidden until the lock so the lines never steer anyone's grid. */}
+        {locked ? (
+          <details className={styles.details} open>
+            <summary>Voir les lignes Vegas</summary>
           <div className={styles.linesGrid}>
             {(['E', 'W'] as const).map((conf) => (
               <div key={conf} className={styles.tableWrap}>
@@ -643,6 +640,12 @@ export default function RulesPage() {
             ))}
           </div>
         </details>
+        ) : (
+          <p className="muted small">
+            Les lignes seront affichées ici au premier match : avant, on les garde cachées pour ne pas influencer ta
+            grille.
+          </p>
+        )}
       </section>
 
       <p className={`muted small ${styles.footer}`}>

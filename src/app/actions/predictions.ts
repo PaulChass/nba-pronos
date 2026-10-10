@@ -18,7 +18,8 @@ export async function saveGridAction(input: unknown, expectedVersion?: number): 
   const grid = parseGrid(input)
   if (!grid) return { ok: false, error: 'Grille illisible.' }
   const res = await savePrediction(user.id, { grid }, 'grid', version(expectedVersion))
-  if (res.ok) revalidatePath('/recap')
+  // 'layout': the nav's Questions/Récap links depend on the grid being complete.
+  if (res.ok) revalidatePath('/', 'layout')
   return res
 }
 

@@ -45,6 +45,24 @@ export function moveTeam(grid: GridPrediction, conf: Conf, from: number, to: num
   return { ...grid, order: { ...grid.order, [conf]: next } }
 }
 
+/**
+ * "Reclasser": moves one team to the place its wins give it in its conference: just before the
+ * first team (in the current order) with fewer wins or no value yet; equal records stay above it.
+ */
+export function reclassTeam(grid: GridPrediction, conf: Conf, abbr: TeamAbbr): GridPrediction {
+  const w = grid.wins[abbr]
+  if (w === null || w === undefined) return grid
+  const rest = grid.order[conf].filter((a) => a !== abbr)
+  let i = rest.findIndex((a) => {
+    const x = grid.wins[a]
+    return x === null || x === undefined || x < w
+  })
+  if (i < 0) i = rest.length
+  const next = [...rest.slice(0, i), abbr, ...rest.slice(i)]
+  if (next.every((a, j) => a === grid.order[conf][j])) return grid
+  return { ...grid, order: { ...grid.order, [conf]: next } }
+}
+
 /** "Trier par victoires": most wins first; ties keep their current order; empty values go last. */
 export function sortConfByWins(grid: GridPrediction, conf: Conf): GridPrediction {
   const list = grid.order[conf]

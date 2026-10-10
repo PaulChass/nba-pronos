@@ -70,6 +70,16 @@ const withoutKeys = <T extends object>(obj: T, keys: readonly string[]): T => {
   return next
 }
 
+/** A save with no answer after this fails (shown as a lost connection, retried) instead of hanging. */
+const SAVE_TIMEOUT_MS = 20_000
+function withTimeout<T>(p: Promise<T>): Promise<T> {
+  let t: ReturnType<typeof setTimeout> | undefined
+  const timeout = new Promise<never>((_, reject) => {
+    t = setTimeout(() => reject(new Error('timeout')), SAVE_TIMEOUT_MS)
+  })
+  return Promise.race([p, timeout]).finally(() => clearTimeout(t))
+}
+
 export function QuestionsForm({
   questions,
   initialAnswers,
@@ -164,7 +174,7 @@ export function QuestionsForm({
           if (dirty.current.answers) {
             sending = 'answers'
             dirty.current.answers = false
-            const res = await saveAnswersAction(answersRef.current, versionRef.current)
+            const res = await withTimeout(saveAnswersAction(answersRef.current, versionRef.current))
             if (!res.ok) {
               dirty.current.answers = true
               if (res.conflict) stopOnConflict()
@@ -180,7 +190,7 @@ export function QuestionsForm({
             sending = 'hot'
             dirty.current.hot = false
             const sent = hotRef.current
-            const res = await saveHotTakesAction({ questions: sent }, versionRef.current)
+            const res = await withTimeout(saveHotTakesAction({ questions: sent }, versionRef.current))
             if (!res.ok) {
               if (res.conflict) stopOnConflict()
               const { next, rolledBack } = rollbackRefusedHot(hotRef.current, sent, hotAccepted.current)
