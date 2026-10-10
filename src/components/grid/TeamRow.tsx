@@ -168,7 +168,7 @@ export const TeamRow = memo(function TeamRow({
         )}
       </div>
 
-      <div className={styles.actions}>
+      <div className={styles.arrows}>
         <button
           type="button"
           className={styles.iconBtn}
@@ -189,6 +189,9 @@ export const TeamRow = memo(function TeamRow({
         >
           ↓
         </button>
+      </div>
+
+      <div className={styles.fireCell}>
         <button
           type="button"
           className={`${styles.iconBtn} ${styles.fire}`}

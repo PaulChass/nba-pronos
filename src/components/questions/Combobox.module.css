@@ -23,7 +23,7 @@
   line-height: 1.25;
 }
 .pickLabel {
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 .input {
@@ -74,7 +74,7 @@
 }
 .optLabel {
   font-weight: 600;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 .noLogo {
   display: inline-block;

@@ -48,8 +48,11 @@ export async function Nav() {
         {user ? (
           <form action={signOutAction} className={styles.user}>
             <span className={styles.pseudo}>{user.pseudo}</span>
-            <button className="btn btn-ghost btn-sm" type="submit">
-              Déconnexion
+            <button className={`btn btn-ghost btn-sm ${styles.logout}`} type="submit" aria-label="Déconnexion" title="Déconnexion">
+              <span className={styles.logoutText}>Déconnexion</span>
+              <span className={styles.logoutIcon} aria-hidden>
+                ⏻
+              </span>
             </button>
           </form>
         ) : (

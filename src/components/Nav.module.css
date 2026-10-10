@@ -60,10 +60,26 @@
   align-items: center;
   gap: 4px;
 }
+/* Phones: brand + pseudo + logout must fit on one line, so logout shrinks to an icon. */
+.logoutIcon {
+  display: none;
+  font-size: 1.05rem;
+}
+@media (max-width: 479px) {
+  .logoutText {
+    display: none;
+  }
+  .logoutIcon {
+    display: inline;
+  }
+  .logout {
+    padding: 0 10px;
+  }
+}
 .pseudo {
   font-weight: 700;
   font-size: 0.9rem;
-  max-width: 120px;
+  max-width: 110px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

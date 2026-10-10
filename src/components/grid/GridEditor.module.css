@@ -66,16 +66,18 @@
   gap: 6px;
 }
 
+/* Phones: the team name gets the whole first line (with 🔥); wins, record and ↑/↓ go below. */
 .row {
   position: relative;
   display: grid;
-  grid-template-columns: 32px 24px minmax(0, 1fr) auto;
+  grid-template-columns: 28px 22px auto minmax(0, 1fr) auto;
   grid-template-areas:
-    'handle rank team stepper'
-    'handle rank meta actions'
-    '. . msg msg';
+    'handle rank team team fire'
+    'handle rank stepper meta arrows'
+    '. . msg msg msg';
   align-items: center;
   column-gap: 6px;
+  row-gap: 2px;
   padding: 6px 6px 6px 2px;
   background: var(--surface);
   border: 1px solid var(--line);
@@ -85,11 +87,11 @@
 }
 @media (min-width: 640px) {
   .row {
-    grid-template-columns: 36px 30px minmax(0, 1fr) auto auto auto;
+    grid-template-columns: 36px 30px minmax(0, 1fr) auto auto auto auto;
     column-gap: 8px;
     grid-template-areas:
-      'handle rank team meta stepper actions'
-      '. . msg msg msg msg';
+      'handle rank team meta stepper arrows fire'
+      '. . msg msg msg msg msg';
     padding-block: 4px;
   }
 }
@@ -221,7 +223,6 @@
   flex-wrap: wrap;
   gap: 4px 10px;
   min-width: 0;
-  padding-left: 32px; /* aligns under the team name, past the logo */
   font-size: 0.85rem;
   color: var(--muted);
 }
@@ -245,11 +246,16 @@
   color: var(--ink);
 }
 
-.actions {
-  grid-area: actions;
+.arrows {
+  grid-area: arrows;
   justify-self: end;
   display: flex;
   gap: 2px;
+}
+.fireCell {
+  grid-area: fire;
+  justify-self: end;
+  display: flex;
 }
 .iconBtn {
   width: 36px;
