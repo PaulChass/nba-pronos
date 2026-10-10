@@ -1,0 +1,155 @@
+{
+ "generatedAt": "2026-10-10T12:07:38.949Z",
+ "coaches": [
+  {
+   "id": "2487819",
+   "name": "Brian Keefe",
+   "team": "WAS"
+  },
+  {
+   "id": "3062",
+   "name": "Charles Lee",
+   "team": "CHA"
+  },
+  {
+   "id": "2613479",
+   "name": "Chris Finch",
+   "team": "MIN"
+  },
+  {
+   "id": "3116516",
+   "name": "Darko Rajakovic",
+   "team": "TOR"
+  },
+  {
+   "id": "3067059",
+   "name": "David Adelman",
+   "team": "DEN"
+  },
+  {
+   "id": "147",
+   "name": "Doug Christie",
+   "team": "SAC"
+  },
+  {
+   "id": "4391222",
+   "name": "Dusty May",
+   "team": "DAL"
+  },
+  {
+   "id": "6749",
+   "name": "Erik Spoelstra",
+   "team": "MIA"
+  },
+  {
+   "id": "866",
+   "name": "Ime Udoka",
+   "team": "HOU"
+  },
+  {
+   "id": "2613478",
+   "name": "J.B. Bickerstaff",
+   "team": "DET"
+  },
+  {
+   "id": "2529241",
+   "name": "Jamahl Mosley",
+   "team": "NOP"
+  },
+  {
+   "id": "3024",
+   "name": "JJ Redick",
+   "team": "LAL"
+  },
+  {
+   "id": "2232684",
+   "name": "Joe Mazzulla",
+   "team": "BOS"
+  },
+  {
+   "id": "4061667",
+   "name": "Jordan Ott",
+   "team": "PHX"
+  },
+  {
+   "id": "4058088",
+   "name": "Jordi Fernandez",
+   "team": "BKN"
+  },
+  {
+   "id": "6809",
+   "name": "Kenny Atkinson",
+   "team": "CLE"
+  },
+  {
+   "id": "4356384",
+   "name": "Mark Daigneault",
+   "team": "OKC"
+  },
+  {
+   "id": "2487822",
+   "name": "Micah Nori",
+   "team": "POR"
+  },
+  {
+   "id": "3612",
+   "name": "Mike Brown",
+   "team": "NYK"
+  },
+  {
+   "id": "4401170",
+   "name": "Mitch Johnson",
+   "team": "SAS"
+  },
+  {
+   "id": "52085",
+   "name": "Nick Nurse",
+   "team": "PHI"
+  },
+  {
+   "id": "52120",
+   "name": "Quin Snyder",
+   "team": "ATL"
+  },
+  {
+   "id": "4661",
+   "name": "Rick Carlisle",
+   "team": "IND"
+  },
+  {
+   "id": "2142798",
+   "name": "Sean Sweeney",
+   "team": "ORL"
+  },
+  {
+   "id": "425",
+   "name": "Steve Kerr",
+   "team": "GSW"
+  },
+  {
+   "id": "3044495",
+   "name": "Taylor Jenkins",
+   "team": "MIL"
+  },
+  {
+   "id": "3233",
+   "name": "Tiago Splitter",
+   "team": "CHI"
+  },
+  {
+   "id": "5277133",
+   "name": "Tuomas Iisalo",
+   "team": "MEM"
+  },
+  {
+   "id": "489",
+   "name": "Tyronn Lue",
+   "team": "LAC"
+  },
+  {
+   "id": "4059065",
+   "name": "Will Hardy",
+   "team": "UTA"
+  }
+ ]
+}

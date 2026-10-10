@@ -1,0 +1,309 @@
+/* Pronos NBA — design tokens + a few shared primitives. Pages add their own CSS Modules. */
+
+:root {
+  --bg: #f5f2ec;
+  --surface: #ffffff;
+  --surface-2: #faf8f4;
+  --ink: #15171c;
+  --muted: #6a6e76;
+  --line: #e3ded4;
+  --accent: #e8590c; /* basketball orange */
+  --accent-ink: #ffffff;
+  --accent-soft: #fde7da;
+  --east: #1d4ed8;
+  --west: #c2410c;
+  --ok: #157a3c;
+  --ok-soft: #dcf3e4;
+  --warn: #a15c07;
+  --warn-soft: #fdf0d5;
+  --err: #c0262d;
+  --err-soft: #fbe0e0;
+  --fire: #ff4500;
+  --radius: 12px;
+  --radius-sm: 8px;
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.05), 0 4px 16px rgb(0 0 0 / 0.04);
+  --font-display: var(--font-barlow), 'Arial Narrow', sans-serif;
+  --font-body: var(--font-inter), system-ui, sans-serif;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0e1014;
+    --surface: #171a20;
+    --surface-2: #1d2128;
+    --ink: #f1f2f4;
+    --muted: #9aa0aa;
+    --line: #2a2f38;
+    --accent: #ff7a2f;
+    --accent-ink: #160a03;
+    --accent-soft: #3a1f10;
+    --east: #6b9bff;
+    --west: #ff8a4c;
+    --ok: #4cc27a;
+    --ok-soft: #12301f;
+    --warn: #f0b44c;
+    --warn-soft: #33270f;
+    --err: #ff6b6b;
+    --err-soft: #3a1416;
+    --shadow: 0 1px 2px rgb(0 0 0 / 0.4);
+    color-scheme: dark;
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+a {
+  color: inherit;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: 0.01em;
+  margin: 0 0 0.5em;
+}
+h1 {
+  font-size: clamp(1.9rem, 6vw, 2.6rem);
+  text-transform: uppercase;
+}
+h2 {
+  font-size: 1.5rem;
+  text-transform: uppercase;
+}
+h3 {
+  font-size: 1.15rem;
+}
+
+/* ---- layout */
+.container {
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 16px;
+}
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.spacer {
+  flex: 1;
+}
+
+/* ---- surfaces */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 16px;
+  box-shadow: var(--shadow);
+}
+.muted {
+  color: var(--muted);
+}
+.small {
+  font-size: 0.875rem;
+}
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- buttons */
+.btn {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 18px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  font: 600 0.95rem var(--font-body);
+  text-decoration: none;
+  cursor: pointer;
+  transition: transform 0.05s, background 0.15s;
+}
+.btn:active {
+  transform: scale(0.98);
+}
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+.btn-ghost {
+  background: transparent;
+  border-color: transparent;
+}
+.btn-sm {
+  min-height: 34px;
+  padding: 0 12px;
+  font-size: 0.85rem;
+}
+
+/* ---- forms */
+.input {
+  width: 100%;
+  min-height: 46px;
+  padding: 0 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  color: var(--ink);
+  font: 500 1rem var(--font-body);
+}
+.input:focus-visible,
+.btn:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  outline-offset: 2px;
+}
+label {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+/* ---- badges & notices */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+}
+.badge-east {
+  color: var(--east);
+}
+.badge-west {
+  color: var(--west);
+}
+.badge-fire {
+  background: color-mix(in srgb, var(--fire) 14%, transparent);
+  border-color: color-mix(in srgb, var(--fire) 40%, transparent);
+  color: var(--fire);
+}
+.notice {
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 0.9rem;
+}
+.notice-ok {
+  background: var(--ok-soft);
+  color: var(--ok);
+}
+.notice-warn {
+  background: var(--warn-soft);
+  color: var(--warn);
+}
+.notice-err {
+  background: var(--err-soft);
+  color: var(--err);
+}
+
+/* ---- tabs (East / West, leaderboard views) */
+.tabs {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+}
+.tab {
+  flex: 1;
+  min-height: 38px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font: 700 0.95rem var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.tab[aria-selected='true'],
+.tab[aria-current='page'] {
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--shadow);
+}
+
+/* ---- tables */
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+}
+.table th,
+.table td {
+  padding: 8px 6px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+}
+.table th {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+}
+.num {
+  text-align: right !important;
+  font-variant-numeric: tabular-nums;
+}
+
+.team-logo {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+  flex: none;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}

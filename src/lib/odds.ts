@@ -1,0 +1,76 @@
+// Bookmaker odds for the questions (ESPN core futures feed, DraftKings), used by the question
+// hot-take test. The daily cron refreshes the snapshot in kv until the lock; after the lock the
+// last pre-lock snapshot is frozen. If no snapshot exists, the file captured on 2026-10-10 is used.
+import fallbackFutures from '@/data/futures-fallback.json'
+import { QUESTIONS } from '@/config/questions'
+import { kvGet, kvSet } from './db'
+import { TEAM_BY_ESPN_ID } from './data'
+import type { QuestionOdds } from './types'
+
+export const FUTURES_URL = (season: number) =>
+  `https://sports.core.api.espn.com/v2/sports/basketball/leagues/nba/seasons/${season}/futures?limit=100`
+export const ODDS_KV_KEY = 'futures-snapshot'
+
+interface EspnFutures {
+  items: {
+    name: string
+    futures?: { provider?: { name?: string }; books: { team?: { $ref: string }; athlete?: { $ref: string }; value: string }[] }[]
+  }[]
+}
+
+/** American odds ("+270", "-360") to implied probability. */
+export function impliedProbability(american: string): number | null {
+  const n = Number(american)
+  if (!Number.isFinite(n) || n === 0) return null
+  return n > 0 ? 100 / (n + 100) : -n / (-n + 100)
+}
+
+const cleanName = (s: string) => s.replace(/[^\x20-\x7E]/g, '').trim()
+
+/** ESPN futures JSON -> de-vigged probabilities per question (answer ids: tricode / ESPN id). */
+export function parseFutures(json: EspnFutures): QuestionOdds {
+  const out: QuestionOdds = {}
+  for (const q of QUESTIONS) {
+    if (!q.futuresMarket) continue
+    const item = json.items.find((i) => cleanName(i.name) === q.futuresMarket)
+    const books = item?.futures?.[0]?.books
+    if (!books?.length) continue
+    const raw: Record<string, number> = {}
+    for (const b of books) {
+      const p = impliedProbability(b.value)
+      const ref = b.team?.$ref ?? b.athlete?.$ref
+      const espnId = ref?.match(/\/(teams|athletes)\/(\d+)/)?.[2]
+      if (p === null || !espnId) continue
+      const id = b.team ? TEAM_BY_ESPN_ID[espnId]?.abbr : espnId
+      if (id) raw[id] = p
+    }
+    const total = Object.values(raw).reduce((a, b) => a + b, 0)
+    if (total > 0) out[q.id] = Object.fromEntries(Object.entries(raw).map(([id, p]) => [id, p / total]))
+  }
+  return out
+}
+
+/** Odds used for hot takes right now (before lock: latest snapshot; after: frozen). */
+export async function getQuestionOdds(): Promise<{ odds: QuestionOdds; asOf: string; source: 'snapshot' | 'fallback' }> {
+  try {
+    const snap = await kvGet<QuestionOdds>(ODDS_KV_KEY)
+    if (snap && Object.keys(snap.value).length) return { odds: snap.value, asOf: snap.updatedAt, source: 'snapshot' }
+  } catch {
+    // DB unavailable: fall through to the bundled snapshot
+  }
+  return { odds: parseFutures(fallbackFutures as EspnFutures), asOf: '2026-10-10T12:00:00Z', source: 'fallback' }
+}
+
+/** Called by the daily cron before the lock. */
+export async function refreshOddsSnapshot(season: number, userAgent: string): Promise<number> {
+  const res = await fetch(FUTURES_URL(season), {
+    headers: { 'user-agent': userAgent, accept: 'application/json' },
+    cache: 'no-store',
+  })
+  if (!res.ok) throw new Error(`ESPN futures ${res.status}`)
+  const odds = parseFutures((await res.json()) as EspnFutures)
+  const markets = Object.keys(odds).length
+  if (markets === 0) throw new Error('ESPN futures: no market parsed')
+  await kvSet(ODDS_KV_KEY, odds)
+  return markets
+}
