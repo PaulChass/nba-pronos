@@ -1,6 +1,6 @@
 // Scoring engine, barème 2026.1 (spec §5). Pure: no I/O, no clock, no randomness, so a score can
 // be replayed from (predictions, lock context, standings, results) at any time.
-// Imports only types/config with relative `.ts` paths so `node --test` can run it.
+// Imports only types/config/pure rules with relative `.ts` paths so `node --test` can run it.
 import { NORMALIZED_LINES } from '../config/bookmaker-lines.ts'
 import { QUESTIONS } from '../config/questions.ts'
 import { SCORING } from '../config/scoring.ts'
@@ -21,6 +21,7 @@ import type {
   TeamScore,
   TeamStanding,
 } from './types.ts'
+import { isLongShot } from './validation.ts'
 
 /** Everything frozen at lock that the hot-take tests need. Plain JSON (cacheable). */
 export interface LockContext {
@@ -178,7 +179,7 @@ export function teamHotTakeOutcome(P: number, L: number, M: number | null, A: nu
 /**
  * Question hot take qualification (at lock). With a market: the pick must be htOddsRatio times
  * less likely than the favourite (unlisted pick = the longest listed shot) and shared by at most
- * floor((N-1)/htGroupShareDivisor) others. Without a market: nobody else, and enough others.
+ * floor((N-1)/htGroupShareDivisor) others. Without a market: nobody else made the same pick.
  */
 export function questionHotTakeEligible(q: QuestionId, pick: string | null | undefined, ctx: LockContext): boolean {
   if (!pick) return false
@@ -189,9 +190,9 @@ export function questionHotTakeEligible(q: QuestionId, pick: string | null | und
   if (market && probs.length) {
     const fav = Math.max(...probs)
     const p = market[pick] ?? Math.min(...probs)
-    return p <= fav / SCORING.htOddsRatio && others <= Math.floor((n - 1) / SCORING.htGroupShareDivisor)
+    return isLongShot(p, fav) && others <= Math.floor((n - 1) / SCORING.htGroupShareDivisor)
   }
-  return others === 0 && n - 1 >= SCORING.htGroupMinOthers
+  return others === 0
 }
 
 /** Declared hot takes actually considered: known ids, de-duplicated, capped in stored order. */
@@ -205,14 +206,53 @@ export function declaredHotTakes(pred: Pick<StoredPrediction, 'hotTakes'>): { te
   return { teams, questions }
 }
 
-/** Fixed-template caption, e.g. "Spurs à 70 V : +11 sur Vegas, +12 sur le groupe". */
+/**
+ * Fixed-template caption, e.g. "Spurs à 70 V : +11 sur Vegas, +12 sur le groupe". Gaps are
+ * truncated toward zero, so a gap just under the threshold (9.5) never reads as 10.
+ */
 export function teamHotTakeCaption(teamName: string, P: number, L: number, M: number | null): string {
   const signed = (x: number) => {
-    const n = Math.round(x)
+    const n = Math.trunc(x)
     return n > 0 ? `+${n}` : n < 0 ? `−${-n}` : '0'
   }
   const group = M === null ? '' : `, ${signed(P - M)} sur le groupe`
   return `${teamName} à ${P} V : ${signed(P - L)} sur Vegas${group}`
+}
+
+/** Player id -> current team tricode (undefined if unknown). Only used to spot a dead Finals MVP pick. */
+export type PlayerTeamLookup = (playerId: string) => TeamAbbr | undefined
+
+/**
+ * A pending pick that can no longer score (spec §5.4: greyed out, left out of "encore jouables").
+ * A finalist or NBA Cup pick is settled only by its own result, so only two picks die early:
+ * - champion: the finalist of its conference is final and is another team;
+ * - Finals MVP: both finalists are final and neither is the player's team (needs `playerTeam`).
+ */
+export function pickIsDead(
+  q: QuestionId,
+  pick: string | null | undefined,
+  results: Results,
+  playerTeam?: PlayerTeamLookup,
+): boolean {
+  if (!pick || (results[q]?.status ?? 'pending') !== 'pending') return false
+  const finalWinners = (id: QuestionId): string[] | null => {
+    const r = results[id]
+    return r?.status === 'final' ? r.winners : null
+  }
+  if (q === 'champion') {
+    const conf = CONF_OF[pick]
+    if (!conf) return false
+    const winners = finalWinners(conf === 'E' ? 'finalistE' : 'finalistW')
+    return winners !== null && !winners.includes(pick)
+  }
+  if (q === 'fmvp') {
+    const team = playerTeam?.(pick)
+    const east = finalWinners('finalistE')
+    const west = finalWinners('finalistW')
+    if (!team || east === null || west === null) return false
+    return !east.includes(team) && !west.includes(team)
+  }
+  return false
 }
 
 // ---------------------------------------------------------------- per user
@@ -224,6 +264,8 @@ export function scoreUser(
   results: Results,
   /** Normalized lines L' (sum 1230). Defaults to the season config. */
   lines: Record<TeamAbbr, number> = NORMALIZED_LINES,
+  /** Optional player -> team lookup: without it a Finals MVP pick is never marked dead. */
+  playerTeam?: PlayerTeamLookup,
 ): ScoreCard {
   const ranges = rankRanges(actual)
   const declared = declaredHotTakes(pred)
@@ -275,8 +317,10 @@ export function scoreUser(
     const hotTake: QuestionHotTake | null = htQuestions.has(q.id)
       ? { eligible, success: eligible && correct === true, bonus: eligible && correct === true ? q.points : 0 }
       : null
-    // Only an answered, undecided question can still pay (plus its doubling if the 🔥 was retained).
-    if (result.status === 'pending' && pick) stillPlayable += q.points + (eligible ? q.points : 0)
+    const dead = pickIsDead(q.id, pick, results, playerTeam)
+    // Only an answered, undecided question whose pick is still alive can pay (plus its doubling
+    // if the 🔥 was retained).
+    if (result.status === 'pending' && pick && !dead) stillPlayable += q.points + (eligible ? q.points : 0)
     return {
       id: q.id,
       pick,
@@ -285,6 +329,7 @@ export function scoreUser(
       points,
       maxPoints: result.status === 'void' ? 0 : q.points,
       hotTake,
+      dead,
     }
   })
 
@@ -336,7 +381,9 @@ export function scoreAll(
   lines: Record<TeamAbbr, number>,
   results: Results,
   final: boolean,
+  /** Optional player -> team lookup, to mark a Finals MVP pick dead once both finalists are known. */
+  playerTeam?: PlayerTeamLookup,
 ): ScoreCard[] {
   const actual = actualWins(standings, lines, final)
-  return leaderboard(preds.map((p) => scoreUser(p, ctx, actual, results, lines)))
+  return leaderboard(preds.map((p) => scoreUser(p, ctx, actual, results, lines, playerTeam)))
 }

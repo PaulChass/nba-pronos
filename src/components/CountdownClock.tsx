@@ -13,6 +13,9 @@ interface Props {
   className?: string
 }
 
+/** Extra refreshes after the lock, in case the browser clock runs ahead of the server's. */
+const LOCK_REFRESH_RETRIES_MS = [2_000, 5_000, 15_000, 30_000]
+
 const pad = (n: number) => String(n).padStart(2, '0')
 const plural = (n: number, word: string) => `${n} ${word}${n > 1 ? 's' : ''}`
 
@@ -23,6 +26,13 @@ export function CountdownClock({ lockAt, size = 'sm', className }: Props) {
   // is an invisible placeholder of the same width (no hydration mismatch, no layout shift).
   const [now, setNow] = useState<number | null>(null)
   const wasOpen = useRef<boolean | null>(null)
+  const retries = useRef<ReturnType<typeof setTimeout>[]>([])
+
+  // Pending lock refreshes die with the component (e.g. once the server swapped the page).
+  useEffect(() => {
+    const pending = retries
+    return () => pending.current.forEach(clearTimeout)
+  }, [])
 
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | undefined
@@ -38,14 +48,17 @@ export function CountdownClock({ lockAt, size = 'sm', className }: Props) {
 
   const remaining = now === null ? null : target - now
 
-  // If the lock passes while the page is open, re-render the server components once (CTAs,
-  // sign-up form, read-only pages…).
+  // If the lock passes while the page is open, re-render the server components (CTAs, sign-up
+  // form, read-only pages…). The server decides with its own clock, and this browser's clock may
+  // run a few seconds ahead of it, so refresh again a few times rather than once.
   useEffect(() => {
     if (remaining === null) return
     if (wasOpen.current === null) wasOpen.current = remaining > 0
     else if (wasOpen.current && remaining <= 0) {
       wasOpen.current = false
       router.refresh()
+      retries.current.forEach(clearTimeout)
+      retries.current = LOCK_REFRESH_RETRIES_MS.map((ms) => setTimeout(() => router.refresh(), ms))
     }
   }, [remaining, router])
 

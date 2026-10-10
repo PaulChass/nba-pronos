@@ -434,6 +434,18 @@
   color: var(--muted);
 }
 
+/* Saved elsewhere since this page loaded: blocking until the reload. */
+.conflict {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+.conflict p {
+  flex: 1 1 220px;
+  margin: 0;
+}
+
 .message {
   display: flex;
   align-items: flex-start;

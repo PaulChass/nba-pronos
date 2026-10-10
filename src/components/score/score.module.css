@@ -218,6 +218,15 @@
 .item:last-child {
   border-bottom: 0;
 }
+/* A pending pick that can no longer score ("éliminé"): greyed out. */
+.itemDead .name,
+.itemDead .score {
+  color: var(--muted);
+}
+.itemDead .name {
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+}
 .itemMain {
   display: grid;
   grid-template-columns: 1.5rem 28px minmax(0, 1fr) auto;

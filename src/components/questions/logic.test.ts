@@ -11,7 +11,10 @@ import {
   MAX_MATCHES,
   normalize,
   optionTeam,
+  rollbackRefusedHot,
+  sameMembers,
   search,
+  staleHotTakes,
   topFavorites,
 } from './logic.ts'
 
@@ -96,6 +99,23 @@ test('hot-take toggle state', () => {
   const noMarket = hotTakeState('fmvp', { fmvp: 'x' }, [], odds)
   assert.equal(noMarket.noMarket, true)
   assert.equal(noMarket.enabled, true)
+})
+
+test('stale stored hot takes are detected', () => {
+  assert.deepEqual(staleHotTakes(['mvp', 'fmvp'], { mvp: 'a', fmvp: 'x' }, odds), ['mvp']) // a is the favorite
+  assert.deepEqual(staleHotTakes(['mvp'], { mvp: 'c' }, odds), [])
+  assert.deepEqual(staleHotTakes(['mvp'], {}, odds), ['mvp']) // no pick any more
+})
+
+test('a refused hot-take save only switches off the newly added ones', () => {
+  // Stored: mvp. Sent: fmvp added and mvp removed; meanwhile the user added clutch.
+  const res = rollbackRefusedHot(['fmvp', 'clutch'], ['fmvp'], ['mvp'])
+  assert.deepEqual(res.rolledBack, ['fmvp'])
+  assert.deepEqual(res.next, ['clutch'])
+  // Nothing new was sent: nothing to roll back (the error is shown instead).
+  assert.deepEqual(rollbackRefusedHot(['mvp'], ['mvp'], ['mvp', 'fmvp']).rolledBack, [])
+  assert.equal(sameMembers(['a', 'b'], ['b', 'a']), true)
+  assert.equal(sameMembers(['a'], ['a', 'b']), false)
 })
 
 test('favorites, percentages, progress', () => {

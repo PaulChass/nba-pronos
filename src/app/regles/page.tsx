@@ -412,7 +412,7 @@ export default function RulesPage() {
           </ol>
           <p className={styles.htStep}>
             Questions sans cote ({NO_MARKET.join(', ')}) : il faut que <strong>personne d’autre</strong> n’ait fait ce
-            choix, et qu’au moins {SCORING.htGroupMinOthers} autres joueurs aient répondu.
+            choix.
           </p>
           <p className={styles.htStep}>
             Réussi si ta réponse est la bonne : <strong>les points de la question sont doublés</strong>.
@@ -518,7 +518,9 @@ export default function RulesPage() {
           </li>
           <li>
             Le classement affiche aussi tes <strong>points encore jouables</strong> : les questions pas encore
-            tranchées auxquelles tu as répondu (doublées si ton hot take est retenu).
+            tranchées auxquelles tu as répondu (doublées si ton hot take est retenu), sauf les choix qui ne peuvent
+            plus tomber, comme un champion éliminé avant les Finales ou un MVP des Finales dont l’équipe n’y est
+            pas : ces choix sont grisés, avec la mention « éliminé ».
           </li>
         </ul>
 

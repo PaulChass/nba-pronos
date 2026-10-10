@@ -23,23 +23,39 @@ function rowToDoc(row: Record<string, unknown>): PredictionDoc {
   }
 }
 
+/**
+ * What each editing page owns: /grille saves the grid and team hot takes, /questions saves the
+ * answers and question hot takes. Each has its own version counter, so the two pages (or a
+ * navigation between them mid-save) never conflict; a stale copy of the SAME page does.
+ */
+export type Section = 'grid' | 'questions'
+
 /** The user's own prediction (empty skeleton if they never saved). */
 export interface OwnPrediction extends PredictionDoc {
   gridValid: boolean
   lastSavedAt: string | null
-  /** Bumped on every save (0 = never saved). Editors send it back to detect a stale tab/device. */
-  version: number
+  /** Per-page version (0 = never saved). Editors send it back to detect a stale tab/device. */
+  versions: Record<Section, number>
 }
 
 export async function getOwnPrediction(userId: number): Promise<OwnPrediction> {
-  const rows = await sql()`select grid, answers, hot_takes, grid_valid, last_saved_at, version from predictions where user_id = ${userId}`
+  const rows = await sql()`
+    select grid, answers, hot_takes, grid_valid, last_saved_at, grid_version, questions_version
+    from predictions where user_id = ${userId}`
   if (!rows.length)
-    return { grid: emptyGrid(), answers: {}, hotTakes: emptyHotTakes(), gridValid: false, lastSavedAt: null, version: 0 }
+    return {
+      grid: emptyGrid(),
+      answers: {},
+      hotTakes: emptyHotTakes(),
+      gridValid: false,
+      lastSavedAt: null,
+      versions: { grid: 0, questions: 0 },
+    }
   return {
     ...rowToDoc(rows[0]),
     gridValid: rows[0].grid_valid,
     lastSavedAt: new Date(rows[0].last_saved_at).toISOString(),
-    version: rows[0].version,
+    versions: { grid: rows[0].grid_version, questions: rows[0].questions_version },
   }
 }
 
@@ -63,6 +79,7 @@ export async function listPredictionsAfterLock(): Promise<StoredPrediction[]> {
 }
 
 export type SaveResult =
+  /** version: the new version of the section that was saved. */
   | { ok: true; gridValid: boolean; prunedHotTakes: string[]; savedAt: string; version: number }
   | { ok: false; error: string; fieldErrors?: Record<string, string>; conflict?: boolean }
 
@@ -76,19 +93,21 @@ const CONFLICT_ERROR =
  * Hot takes that no longer qualify after a grid/answer change (or an odds refresh) are dropped
  * and reported; a hot take the user is adding right now is refused instead.
  *
- * expectedVersion: the version the editor started from. If the stored prediction moved on since
- * (another tab or device saved), the save is refused rather than silently overwriting it.
+ * section + expectedVersion: the page saving and the version of it the editor started from. If
+ * that section moved on since (another tab or device saved it), the save is refused rather than
+ * silently overwriting it.
  */
 export async function savePrediction(
   userId: number,
   patch: { grid?: GridPrediction; answers?: Answers; hotTakes?: HotTakes },
+  section: Section,
   expectedVersion?: number,
 ): Promise<SaveResult> {
   const lock = lockAt()
   if (Date.now() >= lock.getTime()) return { ok: false, error: LOCKED_ERROR }
 
   const current = await getOwnPrediction(userId)
-  if (expectedVersion !== undefined && expectedVersion !== current.version)
+  if (expectedVersion !== undefined && expectedVersion !== current.versions[section])
     return { ok: false, error: CONFLICT_ERROR, conflict: true }
   const next: PredictionDoc = {
     grid: patch.grid ?? current.grid,
@@ -129,6 +148,11 @@ export async function savePrediction(
     return { ok: false, error: `Hot take refusé (${refused.join(', ')}) : pas assez d’écart avec les bookmakers.` }
   }
   const reported = pruned.filter((id) => had.has(id))
+  // A section changes when it is saved, or when this save drops one of its stored hot takes.
+  const prunedTeams = reported.some((id) => current.hotTakes.teams.includes(id))
+  const prunedQuestions = reported.some((id) => (current.hotTakes.questions as string[]).includes(id))
+  const bumpGrid = section === 'grid' || prunedTeams
+  const bumpQuestions = section === 'questions' || prunedQuestions
 
   const gridValid = gridStatus(next.grid).valid
   const rows = await sql()`
@@ -138,9 +162,13 @@ export async function savePrediction(
     where now() < ${lock.toISOString()}::timestamptz
     on conflict (user_id) do update set
       grid = excluded.grid, answers = excluded.answers, hot_takes = excluded.hot_takes,
-      grid_valid = excluded.grid_valid, last_saved_at = now(), version = predictions.version + 1
-    where now() < ${lock.toISOString()}::timestamptz and predictions.version = ${current.version}
-    returning last_saved_at, version`
+      grid_valid = excluded.grid_valid, last_saved_at = now(),
+      grid_version = predictions.grid_version + ${bumpGrid ? 1 : 0},
+      questions_version = predictions.questions_version + ${bumpQuestions ? 1 : 0}
+    where now() < ${lock.toISOString()}::timestamptz
+      and predictions.grid_version = ${current.versions.grid || 1}
+      and predictions.questions_version = ${current.versions.questions || 1}
+    returning last_saved_at, grid_version, questions_version`
   if (!rows.length) {
     if (Date.now() >= lock.getTime()) return { ok: false, error: LOCKED_ERROR }
     return { ok: false, error: CONFLICT_ERROR, conflict: true } // a concurrent save won the race
@@ -150,6 +178,6 @@ export async function savePrediction(
     gridValid,
     prunedHotTakes: reported,
     savedAt: new Date(rows[0].last_saved_at).toISOString(),
-    version: rows[0].version,
+    version: section === 'grid' ? rows[0].grid_version : rows[0].questions_version,
   }
 }

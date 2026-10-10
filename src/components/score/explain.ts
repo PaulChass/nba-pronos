@@ -6,6 +6,7 @@ import { SCORING } from '../../config/scoring.ts'
 import { SEASON } from '../../config/season.ts'
 import { teamHotTakeCaption } from '../../lib/scoring.ts'
 import type { QuestionScore, ScoreCard, TeamScore, TeamStanding } from '../../lib/types.ts'
+import { isLongShot } from '../../lib/validation.ts'
 import { dec, ordinal, pct, plural, rankRangeLabel } from './format.ts'
 
 export type Tone = 'ok' | 'warn' | 'err' | 'neutral'
@@ -129,8 +130,16 @@ export function teamHotTakeView(
 export function questionStatus(q: QuestionScore): Chip {
   if (q.status === 'void') return { label: 'annulée', tone: 'neutral' }
   if (!q.pick) return { label: 'pas de réponse', tone: 'neutral' }
+  if (q.dead) return { label: 'éliminé', tone: 'neutral' }
   if (q.status === 'pending') return { label: 'en attente', tone: 'warn' }
   return q.correct ? { label: 'bonne réponse', tone: 'ok' } : { label: 'raté', tone: 'err' }
+}
+
+/** Why a pending pick can no longer score (q.dead), in one sentence. */
+export function deadExplain(q: Pick<QuestionScore, 'id'>): string {
+  if (q.id === 'champion') return 'Ton champion n’est pas en Finale : ce choix ne peut plus rapporter de points.'
+  if (q.id === 'fmvp') return 'Son équipe n’est pas en Finale : ce choix ne peut plus rapporter de points.'
+  return 'Ce choix ne peut plus rapporter de points.'
 }
 
 /**
@@ -161,7 +170,8 @@ export function questionHotTakeView(
 
   if (!ht.eligible) {
     // Mirrors the odds half of the test (validation.questionHotTakeAllowed) to name the reason.
-    const oddsOk = fav === null || (p ?? Math.min(...probs)) <= fav / SCORING.htOddsRatio
+    // Without a market the only test is "nobody else made this pick", so the group is the reason.
+    const oddsOk = fav === null || isLongShot(p ?? Math.min(...probs), fav)
     return {
       caption,
       chip: { label: `non retenu (${oddsOk ? 'le groupe pensait comme toi' : 'les bookmakers y croyaient trop'})`, tone: 'neutral' },
@@ -172,6 +182,8 @@ export function questionHotTakeView(
     }
   }
   if (q.status === 'void') return { caption, chip: { label: 'annulée', tone: 'neutral' }, detail: 'Question annulée pour tout le monde.' }
+  if (q.dead)
+    return { caption, chip: { label: 'éliminé', tone: 'neutral' }, detail: 'Ce choix ne peut plus tomber : pas de bonus, rien de perdu.' }
   if (q.status === 'pending')
     return { caption, chip: { label: 'en cours', tone: 'warn' }, detail: `Si la réponse tombe : ${q.maxPoints} pts doublés (+${q.maxPoints}).` }
   return q.correct
@@ -196,7 +208,7 @@ export function questionsBreakdown(card: ScoreCard): { correct: number; pending:
   let pending = 0
   for (const q of card.qs) {
     if (q.correct === true) correct++
-    else if (q.status === 'pending' && q.pick) pending++
+    else if (q.status === 'pending' && q.pick && !q.dead) pending++
   }
   return { correct, pending }
 }

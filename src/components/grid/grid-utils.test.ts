@@ -7,6 +7,7 @@ import {
   formatLine,
   moveTeam,
   parseWinsInput,
+  sameMembers,
   sortConfByWins,
   stepWins,
   totalLabel,
@@ -66,4 +67,12 @@ test('French number formats', () => {
   assert.equal(formatInt(1230).replace(/\s/g, ' '), '1 230')
   assert.equal(formatLine(51.6), '51,6')
   assert.equal(formatLine(52), '52,0')
+})
+
+test('sameMembers ignores order', () => {
+  assert.equal(sameMembers([], []), true)
+  assert.equal(sameMembers(['BOS', 'NYK'], ['NYK', 'BOS']), true)
+  assert.equal(sameMembers(['BOS'], ['BOS', 'NYK']), false)
+  assert.equal(sameMembers(['BOS', 'NYK'], ['BOS', 'MIA']), false)
+  assert.equal(sameMembers(['BOS', 'BOS'], ['BOS', 'NYK']), false)
 })

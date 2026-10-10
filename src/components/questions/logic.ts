@@ -132,6 +132,33 @@ export function applyPick(
   }
 }
 
+/** Declared 🔥 whose pick no longer qualifies (e.g. stored before an odds refresh). */
+export function staleHotTakes(
+  hotQuestions: readonly QuestionId[],
+  answers: Answers,
+  odds: QuestionOdds,
+): QuestionId[] {
+  return hotQuestions.filter((h) => !questionHotTakeAllowed(h, answers[h], odds))
+}
+
+/**
+ * The server refused a hot-take list (`sent`): it only refuses 🔥 that were not already stored
+ * (`accepted`), so those are switched back off. Removals the user made are kept.
+ */
+export function rollbackRefusedHot(
+  current: readonly QuestionId[],
+  sent: readonly QuestionId[],
+  accepted: readonly QuestionId[],
+): { next: QuestionId[]; rolledBack: QuestionId[] } {
+  const rolledBack = sent.filter((h) => !accepted.includes(h))
+  return { next: current.filter((h) => !rolledBack.includes(h)), rolledBack }
+}
+
+/** Same ids, order ignored. */
+export function sameMembers(a: readonly string[], b: readonly string[]): boolean {
+  return a.length === b.length && a.every((x) => b.includes(x))
+}
+
 export function hasMarket(q: QuestionId, odds: QuestionOdds): boolean {
   const market = odds[q]
   return !!market && Object.keys(market).length > 0

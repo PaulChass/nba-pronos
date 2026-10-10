@@ -1,15 +1,21 @@
-// ESPN data access. Server-only. ESPN's JSON APIs are unofficial, so kv (Postgres) is the shared
-// cache in front of them: pages are often `force-dynamic` (which disables Next's fetch cache and
-// unstable_cache), and kv still keeps ESPN to a few calls per hour whatever the traffic.
-// - Standings: kv copy younger than 30 min is served as is; otherwise ESPN, then kv. If ESPN
-//   fails, the last good copy is served (source 'cache').
+// ESPN data access. Server-only. ESPN's JSON APIs are unofficial, so kv (Postgres) is the only
+// cache in front of them: every ESPN call is a live `no-store` fetch (Next's data cache is never
+// used: `force-dynamic` does not disable a fetch that sets `next.revalidate`, and a stale cached
+// response could overwrite a newer kv copy), and kv keeps ESPN to a few calls per hour whatever
+// the traffic.
+// - Standings: kv copy younger than 30 min is served as is; otherwise ESPN, then kv (never
+//   replaced by an older copy). If ESPN fails, the last good copy is served (source 'cache').
 // - Question results: each ESPN source is asked at most every few hours, only once its date
-//   gate is passed; what ESPN has settled is frozen in kv (a final result never changes).
+//   gate is passed; what ESPN has settled is frozen in kv (a final result never changes). Writes
+//   are atomic merges of what the call learnt, so concurrent requests never drop each other's work.
+// - A failed kv read throws (no silent "everything pending"); only a missing DATABASE_URL means
+//   "no database".
 // Parsing lives in espn-parse.ts (pure, unit-tested against captured responses).
+import { cache } from 'react'
 import { QUESTION_BY_ID, QUESTIONS } from '@/config/questions'
 import { isRegularSeasonOver, lockAt, SEASON } from '@/config/season'
 import { TEAMS } from '@/data/teams'
-import { kvGet, kvSet } from './db'
+import { kvGet, kvSet, sql } from './db'
 import {
   compactDay,
   daysBackwards,
@@ -56,14 +62,11 @@ const MINUTE = 60_000
 const HOUR = 60 * MINUTE
 const STANDINGS_FRESH = 30 * MINUTE
 
-/**
- * GET + JSON with a browser-like UA. `revalidate` (s) lets Next's data cache absorb bursts when
- * the calling route allows it; without it the call is always live.
- */
-async function espnJson(url: string, revalidate?: number): Promise<{ json: unknown; date: string | null }> {
+/** Live GET + JSON with a browser-like UA (no Next data cache: kv is the cache). */
+async function espnJson(url: string): Promise<{ json: unknown; date: string | null }> {
   const res = await fetch(url, {
     headers: { 'user-agent': ESPN_UA, accept: 'application/json' },
-    ...(revalidate ? { next: { revalidate } } : { cache: 'no-store' as const }),
+    cache: 'no-store',
     signal: AbortSignal.timeout(10_000),
   })
   if (!res.ok) throw new Error(`ESPN ${res.status} on ${url.split('?')[0]}`)
@@ -86,10 +89,10 @@ async function readStoredStandings(): Promise<StoredStandings | null> {
   return v
 }
 
-async function fetchStandings(revalidate?: number): Promise<StoredStandings> {
-  const { json, date } = await espnJson(STANDINGS_URL, revalidate)
+async function fetchStandings(): Promise<StoredStandings> {
+  const { json, date } = await espnJson(STANDINGS_URL)
   const teams = parseStandings(json, Y)
-  // A response served from Next's data cache keeps ESPN's Date header: the real age of the data.
+  // ESPN's Date header (an edge-cached response keeps it): the real age of the data.
   const dated = date ? Date.parse(date) : NaN
   return { teams, fetchedAt: new Date(Number.isNaN(dated) ? Date.now() : Math.min(dated, Date.now())).toISOString() }
 }
@@ -99,7 +102,9 @@ export async function getStandings(): Promise<StandingsResult> {
   const stored = await readStoredStandings()
   if (stored && Date.now() - Date.parse(stored.fetchedAt) < STANDINGS_FRESH) return { ...stored, source: 'live' }
   try {
-    const fresh = await fetchStandings(600)
+    const fresh = await fetchStandings()
+    // Never replace kv with an older copy (e.g. the cron wrote newer numbers meanwhile).
+    if (stored && Date.parse(fresh.fetchedAt) <= Date.parse(stored.fetchedAt)) return { ...stored, source: 'live' }
     await kvSet(STANDINGS_KV, fresh).catch((err) => console.warn('[espn] standings kv write failed:', errorText(err)))
     return { ...fresh, source: 'live' }
   } catch (err) {
@@ -214,13 +219,15 @@ interface AutoState {
   checkedAt: Partial<Record<SourceName, string>>
 }
 
+const hasDatabase = () => !!process.env.DATABASE_URL
+
+/**
+ * Null only when there is no database (unknown state). A failed read throws: answering "nothing
+ * settled" instead would show every ESPN-settled question as pending and drop its points.
+ */
 async function readAutoState(): Promise<AutoState | null> {
-  let stored: { value: AutoState } | null
-  try {
-    stored = await kvGet<AutoState>(RESULTS_KV)
-  } catch {
-    return null // no database: unknown state
-  }
+  if (!hasDatabase()) return null
+  const stored = await kvGet<AutoState>(RESULTS_KV)
   const state: AutoState = { final: {}, checkedAt: { ...(stored?.value?.checkedAt ?? {}) } }
   for (const q of QUESTIONS) {
     const r = stored?.value?.final?.[q.id]
@@ -240,7 +247,28 @@ export interface AutoResultsReport {
   errors: Partial<Record<SourceName, string>>
 }
 
-/** Core of getAutoResults / refreshAutoResults; `now` is injectable for scripts and tests. */
+/**
+ * Merges what one call learnt into kv 'auto-results', atomically (one statement), instead of
+ * writing back a whole state read before the ESPN calls:
+ * - a result frozen meanwhile by a concurrent call is kept (an already frozen result wins);
+ * - a result the admin forgot meanwhile is not written back (the delta only holds results this
+ *   call fetched, and a forgotten question was frozen, so not fetched, when the call started).
+ */
+async function mergeAutoState(delta: AutoState): Promise<void> {
+  await sql()`
+    insert into kv (key, value, updated_at) values (${RESULTS_KV}, ${JSON.stringify(delta)}::jsonb, now())
+    on conflict (key) do update set value = jsonb_build_object(
+      'final', (excluded.value->'final')
+        || (case when jsonb_typeof(kv.value->'final') = 'object' then kv.value->'final' else '{}'::jsonb end),
+      'checkedAt', (case when jsonb_typeof(kv.value->'checkedAt') = 'object' then kv.value->'checkedAt' else '{}'::jsonb end)
+        || (excluded.value->'checkedAt')
+    ), updated_at = now()`
+}
+
+/**
+ * Core of getAutoResults / refreshAutoResults; `now` is injectable for scripts and tests.
+ * ESPN failures are reported per source in `errors`; a failed kv read throws.
+ */
 export async function computeAutoResults(live: boolean, now = new Date()): Promise<AutoResultsReport> {
   const loaded = await readAutoState()
   // Without kv there is nothing to throttle ESPN calls with: pages then skip ESPN (the cron still asks).
@@ -267,14 +295,16 @@ export async function computeAutoResults(live: boolean, now = new Date()): Promi
         errors[s] = errorText(err)
         console.warn(`[espn] ${s} results unavailable:`, errors[s])
       }
-      state.checkedAt[s] = now.toISOString()
     }),
   )
 
-  // Freeze what ESPN has just settled, so it survives later ESPN changes or outages.
-  for (const q of need) if (fetched[q]?.status === 'final') state.final[q] = fetched[q]
+  // Freeze what ESPN has just settled, so it survives later ESPN changes or outages. Only this
+  // call's news is written (see mergeAutoState).
+  const delta: AutoState = { final: {}, checkedAt: {} }
+  for (const q of need) if (fetched[q]?.status === 'final') state.final[q] = delta.final[q] = fetched[q]
+  for (const s of checked) state.checkedAt[s] = delta.checkedAt[s] = now.toISOString()
   if (checked.length)
-    await kvSet(RESULTS_KV, state).catch((err) => console.warn('[espn] results kv write failed:', errorText(err)))
+    await mergeAutoState(delta).catch((err) => console.warn('[espn] results kv write failed:', errorText(err)))
 
   const results: Results = {}
   for (const q of QUESTIONS) results[q.id] = state.final[q.id] ?? PENDING
@@ -285,18 +315,17 @@ export async function computeAutoResults(live: boolean, now = new Date()): Promi
 /**
  * Question results detected automatically from ESPN: awards (7 of 8 — not Coach of the Year),
  * NBA Cup winner, conference champions (finalists), NBA champion, scoring leader.
- * Every question is present; unknown yet = { status: 'pending' }. Never throws.
+ * Every question is present; unknown yet = { status: 'pending' }. An ESPN outage leaves the
+ * questions pending; a failed kv read throws (pages show their "momentanément indisponible"
+ * notice rather than silently dropping settled results). Memoized per render: the admin page
+ * reads it directly and through getResults.
  */
-export async function getAutoResults(): Promise<Results> {
-  try {
-    return (await computeAutoResults(false)).results
-  } catch (err) {
-    console.warn('[espn] auto results failed:', errorText(err))
-    return Object.fromEntries(QUESTIONS.map((q) => [q.id, PENDING]))
-  }
-}
+export const getAutoResults = cache(async (): Promise<Results> => (await computeAutoResults(false)).results)
 
-/** Cron: asks every open source live, ignoring the recheck delays, and reports per-source errors. */
+/**
+ * Cron / admin refresh: asks every open source live, ignoring the recheck delays, and reports
+ * per-source ESPN errors. Throws on a failed kv read (never overwrites kv with an empty state).
+ */
 export async function refreshAutoResults(): Promise<AutoResultsReport> {
   return computeAutoResults(true)
 }
@@ -304,12 +333,12 @@ export async function refreshAutoResults(): Promise<AutoResultsReport> {
 /**
  * Drops a frozen auto result so ESPN is asked again on the next request. Used when the admin
  * removes an override: "back to auto" then means ESPN's current answer, not an old frozen one.
+ * Atomic (one statement): a result another request freezes meanwhile is kept.
  */
 export async function forgetAutoResult(q: QuestionId): Promise<void> {
-  const state = await readAutoState()
+  if (!hasDatabase()) return
   const source = sourceOf(q)
-  if (!state || (!state.final[q] && !source)) return
-  delete state.final[q]
-  if (source) delete state.checkedAt[source]
-  await kvSet(RESULTS_KV, state)
+  await sql()`
+    update kv set value = value #- array['final', ${q}::text] #- array['checkedAt', ${source ?? ''}::text], updated_at = now()
+    where key = ${RESULTS_KV}`
 }

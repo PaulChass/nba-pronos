@@ -140,6 +140,11 @@ export interface QuestionScore {
   points: number
   maxPoints: number
   hotTake: QuestionHotTake | null
+  /**
+   * Still pending, but the pick can no longer score (e.g. a champion whose conference finalist is
+   * another team): shown greyed out as "éliminé" and left out of `stillPlayable`.
+   */
+  dead: boolean
 }
 
 export interface ScoreCard {
@@ -153,7 +158,7 @@ export interface ScoreCard {
   total: number
   teams: TeamScore[]
   qs: QuestionScore[]
-  /** Points still mathematically available (pending questions + their hot-take bonus). */
+  /** Points still mathematically available (pending questions whose pick is alive + their hot-take bonus). */
   stillPlayable: number
   rank: number // 1-based position in the general leaderboard (ties share nothing: strict order)
 }

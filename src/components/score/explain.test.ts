@@ -2,9 +2,11 @@ import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import type { QuestionScore, ScoreCard, TeamScore } from '../../lib/types.ts'
 import {
+  deadExplain,
   hotTakesBreakdown,
   projectionExplain,
   questionHotTakeView,
+  questionsBreakdown,
   questionStatus,
   rankPtsExplain,
   teamHotTakeView,
@@ -36,6 +38,7 @@ const question = (over: Partial<QuestionScore> = {}): QuestionScore => ({
   points: 0,
   maxPoints: 20,
   hotTake: null,
+  dead: false,
   ...over,
 })
 
@@ -148,6 +151,24 @@ describe('questions', () => {
     assert.equal(tooLikely?.chip.label, 'non retenu (les bookmakers y croyaient trop)')
     const noMarket = questionHotTakeView(question({ hotTake: { eligible: false, success: false, bonus: 0 } }), 'X', undefined, 3)
     assert.equal(noMarket?.chip.label, 'non retenu (le groupe pensait comme toi)')
+    assert.equal(noMarket?.detail, 'Sans cote, personne d’autre ne devait faire ce choix. Ça ne coûte rien.')
+    // Exactly 3x less likely passes the odds test (float-safe): the group is the reason.
+    const exactRatio = questionHotTakeView(
+      question({ hotTake: { eligible: false, success: false, bonus: 0 } }),
+      'Wemby',
+      { '123': 0.2, '999': 0.6 },
+      3,
+    )
+    assert.equal(exactRatio?.chip.label, 'non retenu (le groupe pensait comme toi)')
+  })
+  it('a dead pick is shown as "éliminé", hot take included', () => {
+    const dead = question({ id: 'champion', pick: 'NYK', maxPoints: 30, dead: true, hotTake: { eligible: true, success: false, bonus: 0 } })
+    assert.deepEqual(questionStatus(dead), { label: 'éliminé', tone: 'neutral' })
+    assert.equal(questionHotTakeView(dead, 'Knicks', { NYK: 0.1, OKC: 0.45 }, 1)?.chip.label, 'éliminé')
+    assert.match(deadExplain(dead), /^Ton champion n’est pas en Finale/)
+    assert.match(deadExplain({ id: 'fmvp' }), /^Son équipe n’est pas en Finale/)
+    // Not counted as "en attente" in the leaderboard detail.
+    assert.deepEqual(questionsBreakdown(card({ qs: [dead, question()] })), { correct: 0, pending: 1 })
   })
   it('hot-take breakdown', () => {
     const c = card({

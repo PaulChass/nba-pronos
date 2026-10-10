@@ -288,6 +288,14 @@ describe('team hot takes', () => {
     assert.equal(teamHotTakeCaption('Spurs', 70, 58.7, 58), 'Spurs à 70 V : +11 sur Vegas, +12 sur le groupe')
     assert.equal(teamHotTakeCaption('Jazz', 20, 37, null), 'Jazz à 20 V : −17 sur Vegas')
   })
+  it('caption never rounds a gap up to the threshold (median ending in .5)', () => {
+    // Others 58/60/61/62 -> median 60.5: 9.5 under the 10 needed, so not retained…
+    assert.equal(teamHotTakeOutcome(70, 58.7, 60.5, 70).eligible, false)
+    // …and the caption must not read "+10 sur le groupe".
+    assert.equal(teamHotTakeCaption('Spurs', 70, 58.7, 60.5), 'Spurs à 70 V : +11 sur Vegas, +9 sur le groupe')
+    assert.equal(teamHotTakeCaption('Jazz', 20, 37, 29.5), 'Jazz à 20 V : −17 sur Vegas, −9 sur le groupe')
+    assert.equal(teamHotTakeCaption('Jazz', 20, 20.4, 19.6), 'Jazz à 20 V : 0 sur Vegas, 0 sur le groupe')
+  })
 })
 
 describe('buildLockContext + team hot takes end to end', () => {
@@ -363,6 +371,13 @@ describe('question hot-take eligibility', () => {
     assert.equal(questionHotTakeEligible('mvp', 'mid', qctx('mvp', 'mid', 11, 1, odds)), false)
     assert.equal(questionHotTakeEligible('mvp', 'fav', qctx('mvp', 'fav', 11, 1, odds)), false)
   })
+  it('bookmaker test: an exact 3x ratio qualifies despite floating-point rounding', () => {
+    // -150 vs +400 de-vigged: 0.6 and 0.2, where 0.6 / 3 = 0.19999999999999998 < 0.2.
+    const exact: QuestionOdds = { mvp: { fav: 0.6, long: 0.2, other: 0.2 } }
+    assert.equal(questionHotTakeEligible('mvp', 'long', qctx('mvp', 'long', 11, 1, exact)), true)
+    const justAbove: QuestionOdds = { mvp: { fav: 0.6, long: 0.2001 } }
+    assert.equal(questionHotTakeEligible('mvp', 'long', qctx('mvp', 'long', 11, 1, justAbove)), false)
+  })
   it('an unlisted pick counts as the longest listed shot', () => {
     assert.equal(questionHotTakeEligible('mvp', 'nobody', qctx('mvp', 'nobody', 11, 1, odds)), true)
     const flat: QuestionOdds = { mvp: { a: 0.3, b: 0.3, c: 0.4 } }
@@ -374,10 +389,12 @@ describe('question hot-take eligibility', () => {
     assert.equal(questionHotTakeEligible('mvp', 'long', qctx('mvp', 'long', 5, 2, odds)), false) // 1 > floor(4/5)
     assert.equal(questionHotTakeEligible('mvp', 'long', qctx('mvp', 'long', 5, 1, odds)), true)
   })
-  it('no market: nobody else, and at least 4 others answered', () => {
+  it('no market: retained iff nobody else made the same pick, whatever the group size', () => {
     assert.equal(questionHotTakeEligible('clutch', 'x', qctx('clutch', 'x', 5, 1)), true)
-    assert.equal(questionHotTakeEligible('clutch', 'x', qctx('clutch', 'x', 4, 1)), false)
+    assert.equal(questionHotTakeEligible('clutch', 'x', qctx('clutch', 'x', 4, 1)), true)
+    assert.equal(questionHotTakeEligible('clutch', 'x', qctx('clutch', 'x', 1, 1)), true)
     assert.equal(questionHotTakeEligible('clutch', 'x', qctx('clutch', 'x', 12, 2)), false)
+    assert.equal(questionHotTakeEligible('clutch', 'x', qctx('clutch', 'x', 3, 2)), false)
     // an empty market is no market
     assert.equal(questionHotTakeEligible('mvp', 'x', qctx('mvp', 'x', 5, 1, { mvp: {} })), true)
   })
@@ -479,6 +496,78 @@ describe('stillPlayable', () => {
   it('is 0 once everything is decided', () => {
     const results: Results = Object.fromEntries(QUESTIONS.map((q) => [q.id, { status: 'final', winners: [], source: 'auto' }]))
     assert.equal(scoreUser(pred(1, { answers: { mvp: 'a' } }), emptyCtx(), BASE_WINS, results).stillPlayable, 0)
+  })
+})
+
+describe('dead picks', () => {
+  // NYK as East finalist and champion, with a retained 🔥 on the champion (long shot, unique pick).
+  const preds = [
+    pred(1, { answers: { finalistE: 'NYK', finalistW: 'OKC', champion: 'NYK', fmvp: 'brunson' }, hotTakes: { teams: [], questions: ['champion'] } }),
+    ...[2, 3, 4, 5].map((i) => pred(i, { answers: { champion: 'OKC' } })),
+  ]
+  const ctx = buildLockContext(preds, { champion: { OKC: 0.45, NYK: 0.1, BOS: 0.08 } })
+  const TEAM_OF: Record<string, TeamAbbr> = { brunson: 'NYK', sga: 'OKC' }
+  const teamOf = (id: string): TeamAbbr | undefined => TEAM_OF[id]
+  const q = (c: ScoreCard, id: QuestionId) => c.qs.find((x) => x.id === id)!
+
+  it('a champion whose conference finalist is another team is dead and no longer playable', () => {
+    const c = scoreUser(preds[0], ctx, BASE_WINS, {
+      finalistE: { status: 'final', winners: ['BOS'], source: 'auto' },
+      finalistW: { status: 'final', winners: ['DEN'], source: 'auto' },
+    })
+    assert.equal(q(c, 'champion').hotTake?.eligible, true)
+    assert.equal(q(c, 'champion').status, 'pending')
+    assert.equal(q(c, 'champion').dead, true)
+    // finalists are decided (missed), fmvp is not marked dead without a player -> team lookup
+    assert.equal(q(c, 'fmvp').dead, false)
+    assert.equal(c.stillPlayable, 20) // fmvp only; champion 30 + 30 (🔥) left out
+    assert.equal(q(c, 'finalistE').dead, false) // decided: "raté", not "éliminé"
+  })
+  it('the other conference being decided does not kill the champion', () => {
+    const c = scoreUser(preds[0], ctx, BASE_WINS, { finalistW: { status: 'final', winners: ['DEN'], source: 'auto' } })
+    assert.equal(q(c, 'champion').dead, false)
+    assert.equal(c.stillPlayable, 20 + 20 + 30 + 30) // finalistE, fmvp, champion doubled
+  })
+  it('a champion that reached the Finals stays alive', () => {
+    const c = scoreUser(preds[0], ctx, BASE_WINS, { finalistE: { status: 'final', winners: ['NYK'], source: 'auto' } })
+    assert.equal(q(c, 'champion').dead, false)
+  })
+  it('a void finalist question never kills the champion', () => {
+    const c = scoreUser(preds[0], ctx, BASE_WINS, { finalistE: { status: 'void' } })
+    assert.equal(q(c, 'champion').dead, false)
+  })
+  it('finalist and NBA Cup picks are never dead before their own result', () => {
+    const c = scoreUser(pred(1, { answers: { finalistE: 'NYK', cup: 'NYK' } }), emptyCtx(), BASE_WINS, {
+      champion: { status: 'final', winners: ['OKC'], source: 'auto' },
+    })
+    assert.equal(q(c, 'finalistE').dead, false)
+    assert.equal(q(c, 'cup').dead, false)
+    assert.equal(c.stillPlayable, 40)
+  })
+  it('Finals MVP is dead once both finalists are known and his team is not one of them', () => {
+    const both: Results = {
+      finalistE: { status: 'final', winners: ['BOS'], source: 'auto' },
+      finalistW: { status: 'final', winners: ['OKC'], source: 'auto' },
+    }
+    const dead = scoreUser(preds[0], ctx, BASE_WINS, both, NORMALIZED_LINES, teamOf)
+    assert.equal(q(dead, 'fmvp').dead, true)
+    assert.equal(dead.stillPlayable, 0) // champion NYK dead too
+    const sga = pred(1, { answers: { fmvp: 'sga' } })
+    assert.equal(q(scoreUser(sga, emptyCtx(), BASE_WINS, both, NORMALIZED_LINES, teamOf), 'fmvp').dead, false)
+    // only one finalist known: not dead yet
+    const one: Results = { finalistE: both.finalistE }
+    assert.equal(q(scoreUser(preds[0], ctx, BASE_WINS, one, NORMALIZED_LINES, teamOf), 'fmvp').dead, false)
+    // unknown player: never dead
+    const unknown = pred(1, { answers: { fmvp: 'nobody' } })
+    assert.equal(q(scoreUser(unknown, emptyCtx(), BASE_WINS, both, NORMALIZED_LINES, teamOf), 'fmvp').dead, false)
+  })
+  it('scoreAll forwards the player lookup', () => {
+    const both: Results = {
+      finalistE: { status: 'final', winners: ['BOS'], source: 'auto' },
+      finalistW: { status: 'final', winners: ['OKC'], source: 'auto' },
+    }
+    const [c] = scoreAll([preds[0]], ctx, [], NORMALIZED_LINES, both, false, teamOf)
+    assert.equal(q(c, 'fmvp').dead, true)
   })
 })
 

@@ -17,7 +17,7 @@ export async function saveGridAction(input: unknown, expectedVersion?: number): 
   if (!user) return notSignedIn
   const grid = parseGrid(input)
   if (!grid) return { ok: false, error: 'Grille illisible.' }
-  const res = await savePrediction(user.id, { grid }, version(expectedVersion))
+  const res = await savePrediction(user.id, { grid }, 'grid', version(expectedVersion))
   if (res.ok) revalidatePath('/recap')
   return res
 }
@@ -27,14 +27,14 @@ export async function saveAnswersAction(input: unknown, expectedVersion?: number
   if (!user) return notSignedIn
   const answers = parseAnswers(input)
   if (!answers) return { ok: false, error: 'Réponses illisibles.' }
-  const res = await savePrediction(user.id, { answers }, version(expectedVersion))
+  const res = await savePrediction(user.id, { answers }, 'questions', version(expectedVersion))
   if (res.ok) revalidatePath('/recap')
   return res
 }
 
 /**
- * Saves the team and/or question hot takes. A missing side keeps what is stored, so the grid page
- * (teams) and the questions page (questions) never overwrite each other.
+ * Saves the team hot takes ({ teams }, from /grille) or the question hot takes ({ questions }, from
+ * /questions). The missing side keeps what is stored, so the two pages never overwrite each other.
  */
 export async function saveHotTakesAction(
   input: { teams?: unknown; questions?: unknown },
@@ -48,7 +48,8 @@ export async function saveHotTakesAction(
     questions: input?.questions ?? stored.questions,
   })
   if (!hotTakes) return { ok: false, error: 'Hot takes illisibles.' }
-  const res = await savePrediction(user.id, { hotTakes }, version(expectedVersion))
+  const section = input?.teams !== undefined ? 'grid' : 'questions'
+  const res = await savePrediction(user.id, { hotTakes }, section, version(expectedVersion))
   if (res.ok) revalidatePath('/recap')
   return res
 }

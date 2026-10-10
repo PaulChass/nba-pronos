@@ -60,6 +60,8 @@ export default async function GrillePage() {
         initialGrid={parseGrid(own.grid) ?? emptyGrid()}
         initialHotTeams={own.hotTakes.teams}
         initialHotQuestions={own.hotTakes.questions}
+        // Sent back with every save: a save made elsewhere since this render is refused, not overwritten.
+        initialVersion={own.versions.grid}
         lastSavedAt={own.lastSavedAt}
         lockAt={lock.toISOString()}
         lines={NORMALIZED_LINES}

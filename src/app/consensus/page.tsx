@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { BOOKMAKER_SOURCE, NORMALIZED_LINES } from '@/config/bookmaker-lines'
 import { QUESTIONS, type QuestionDef } from '@/config/questions'
 import { isLocked, isRegularSeasonOver, lockAt } from '@/config/season'
-import { answerLabel, TEAM_BY_ABBR } from '@/lib/data'
+import { answerLabel, PLAYER_BY_ID, TEAM_BY_ABBR } from '@/lib/data'
 import { getStandings, type StandingsResult } from '@/lib/espn'
 import { getQuestionOdds } from '@/lib/odds'
 import { listPredictionsAfterLock } from '@/lib/predictions'
@@ -285,7 +285,7 @@ export default async function ConsensusPage({
   let cards = new Map<number, ScoreCard>()
   if (ctx && standings) {
     try {
-      cards = new Map(scoreAll(preds, ctx, standings.teams, NORMALIZED_LINES, results, final).map((c) => [c.userId, c]))
+      cards = new Map(scoreAll(preds, ctx, standings.teams, NORMALIZED_LINES, results, final, (id) => PLAYER_BY_ID[id]?.team).map((c) => [c.userId, c]))
     } catch {
       // statuses are a bonus here: the captions still render without them
     }

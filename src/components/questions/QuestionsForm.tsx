@@ -7,9 +7,20 @@ import { saveAnswersAction, saveHotTakesAction } from '@/app/actions/predictions
 import type { QuestionDef } from '@/config/questions'
 import { SCORING } from '@/config/scoring'
 import type { PickerOption } from '@/lib/data'
-import type { AnswerKind, Answers, QuestionId, QuestionOdds, TeamAbbr } from '@/lib/types'
+import type { AnswerKind, Answers, QuestionId, QuestionOdds } from '@/lib/types'
 import { Combobox } from './Combobox'
-import { answeredCount, applyPick, formatPct, hotTakeState, optionTeam, TEAM, topFavorites } from './logic'
+import {
+  answeredCount,
+  applyPick,
+  formatPct,
+  hotTakeState,
+  optionTeam,
+  rollbackRefusedHot,
+  sameMembers,
+  staleHotTakes,
+  TEAM,
+  topFavorites,
+} from './logic'
 import { ChampionPicker, TeamPicker } from './TeamPicker'
 import styles from './QuestionsForm.module.css'
 
@@ -19,8 +30,8 @@ export interface QuestionsFormProps {
   questions: readonly QuestionDef[]
   initialAnswers: Answers
   initialHotQuestions: QuestionId[]
-  /** Team hot takes are managed on the grid page; re-sent untouched with each question save. */
-  teamHotTakes: TeamAbbr[]
+  /** Version of the stored prediction this page starts from (0 = never saved): a save from a stale tab is refused. */
+  initialVersion: number
   odds: QuestionOdds
   /** "10 oct." — date of the odds snapshot. */
   oddsAsOf: string
@@ -41,6 +52,12 @@ type Notes = Partial<Record<QuestionId, string>>
 
 const SAVE_DEBOUNCE_MS = 600
 const NETWORK_ERROR = 'Connexion perdue : tes derniers choix ne sont pas encore enregistrés.'
+const HOT_DROPPED = '🔥 Hot take retiré : ce choix n’est plus assez audacieux.'
+const HOT_REFUSED = '🔥 Hot take refusé : selon les dernières cotes des bookmakers, ce choix n’est pas assez audacieux.'
+const CONFLICT_NOTICE =
+  'Tes pronos ont été modifiés ailleurs (autre onglet ou autre appareil) : tes derniers choix ici ne sont pas enregistrés. Recharge la page pour repartir de la dernière version.'
+/** Refusals that rolling back a 🔥 would not fix. */
+const SESSION_OR_LOCK = /reconnecte|verrouill/i
 
 function listFor(kind: AnswerKind): keyof OptionLists {
   return kind === 'champion' ? 'team' : kind
@@ -57,7 +74,7 @@ export function QuestionsForm({
   questions,
   initialAnswers,
   initialHotQuestions,
-  teamHotTakes,
+  initialVersion,
   odds,
   oddsAsOf,
   options,
@@ -65,17 +82,30 @@ export function QuestionsForm({
   ownPage,
 }: QuestionsFormProps) {
   const router = useRouter()
+  // A stored 🔥 can stop qualifying after an odds refresh: never show it as declared.
+  const [boot] = useState(() => {
+    const stale = staleHotTakes(initialHotQuestions, initialAnswers, odds)
+    return { hot: initialHotQuestions.filter((h) => !stale.includes(h)), stale }
+  })
   const [answers, setAnswers] = useState<Answers>(initialAnswers)
-  const [hotQs, setHotQs] = useState<QuestionId[]>(initialHotQuestions)
+  const [hotQs, setHotQs] = useState<QuestionId[]>(boot.hot)
   const [showFav, setShowFav] = useState(false)
   const [save, setSave] = useState<SaveState>({ kind: 'idle' })
   const [fieldErrors, setFieldErrors] = useState<Notes>({})
-  const [notes, setNotes] = useState<Notes>({})
+  const [notes, setNotes] = useState<Notes>(() => Object.fromEntries(boot.stale.map((h) => [h, HOT_DROPPED])))
   const [locked, setLocked] = useState(false)
+  // Another tab or device saved since this page loaded: saving would overwrite it, so stop.
+  const [conflict, setConflict] = useState(false)
+  const readOnly = locked || conflict
 
   // Refs hold the latest values for the save loop (state updates are async).
   const answersRef = useRef(answers)
   const hotRef = useRef(hotQs)
+  /** The question hot takes the server holds, as far as this tab knows. */
+  const hotAccepted = useRef<QuestionId[]>(initialHotQuestions)
+  /** Version of the stored prediction this tab is based on; sent with every save. */
+  const versionRef = useRef(initialVersion)
+  const conflictRef = useRef(false)
   const dirty = useRef({ answers: false, hot: false })
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const loop = useRef<Promise<boolean> | null>(null)
@@ -93,12 +123,37 @@ export function QuestionsForm({
     setHotQs(next)
   }, [])
 
+  /** The server dropped stored 🔥 that no longer qualify with its own (possibly fresher) odds. */
+  const dropPruned = useCallback(
+    (ids: readonly string[]) => {
+      if (!ids.length) return
+      hotAccepted.current = hotAccepted.current.filter((h) => !ids.includes(h))
+      const pruned = hotRef.current.filter((h) => ids.includes(h))
+      if (pruned.length) {
+        updateHot(hotRef.current.filter((h) => !ids.includes(h)))
+        setNotes((n) => ({ ...n, ...Object.fromEntries(pruned.map((h) => [h, HOT_DROPPED])) }))
+      }
+      router.refresh() // fetch the fresher odds, so the 🔥 toggles agree with the server
+    },
+    [router, updateHot],
+  )
+
   /**
    * Sends pending changes, answers first then hot takes (the server checks a 🔥 against the saved
-   * answer). One loop at a time; changes made meanwhile are picked up once their debounce expires.
+   * answer). One loop at a time, so saves stay sequential and each one carries the version the
+   * previous one returned; changes made meanwhile are picked up once their debounce expires.
    */
   const flush = useCallback((): Promise<boolean> => {
     if (loop.current) return loop.current
+    if (conflictRef.current) return Promise.resolve(false)
+    const stopOnConflict = () => {
+      conflictRef.current = true
+      if (timer.current) {
+        clearTimeout(timer.current)
+        timer.current = null
+      }
+      setConflict(true)
+    }
     const run = async (): Promise<boolean> => {
       setSave({ kind: 'pending' })
       let error: string | null = null
@@ -109,34 +164,44 @@ export function QuestionsForm({
           if (dirty.current.answers) {
             sending = 'answers'
             dirty.current.answers = false
-            const res = await saveAnswersAction(answersRef.current)
+            const res = await saveAnswersAction(answersRef.current, versionRef.current)
             if (!res.ok) {
               dirty.current.answers = true
-              setFieldErrors((res.fieldErrors ?? {}) as Notes)
+              if (res.conflict) stopOnConflict()
+              else setFieldErrors((res.fieldErrors ?? {}) as Notes)
               error = res.error
               break
             }
+            versionRef.current = res.version
             setFieldErrors({})
             savedAt = res.savedAt
-            // The server drops 🔥 that no longer qualify with its own (possibly fresher) odds.
-            const pruned = res.prunedHotTakes.filter((h) => hotRef.current.includes(h as QuestionId)) as QuestionId[]
-            if (pruned.length) {
-              updateHot(hotRef.current.filter((h) => !pruned.includes(h)))
-              setNotes((n) => ({
-                ...n,
-                ...Object.fromEntries(pruned.map((h) => [h, '🔥 Hot take retiré : ce choix n’est plus assez audacieux.'])),
-              }))
-            }
+            dropPruned(res.prunedHotTakes)
           } else {
             sending = 'hot'
             dirty.current.hot = false
-            const res = await saveHotTakesAction({ questions: hotRef.current })
+            const sent = hotRef.current
+            const res = await saveHotTakesAction({ questions: sent }, versionRef.current)
             if (!res.ok) {
-              dirty.current.hot = true
-              error = res.error
-              break
+              if (res.conflict) stopOnConflict()
+              const { next, rolledBack } = rollbackRefusedHot(hotRef.current, sent, hotAccepted.current)
+              if (res.conflict || SESSION_OR_LOCK.test(res.error) || !rolledBack.length) {
+                dirty.current.hot = true
+                error = res.error
+                break
+              }
+              // The 🔥 just switched on did not qualify for the server (fresher odds): switch it back
+              // off and explain on its question, instead of retrying the same refused list forever.
+              updateHot(next)
+              const note = /^Hot take refusé/.test(res.error) ? HOT_REFUSED : `🔥 ${res.error}`
+              setNotes((n) => ({ ...n, ...Object.fromEntries(rolledBack.map((h) => [h, note])) }))
+              if (!sameMembers(next, hotAccepted.current)) dirty.current.hot = true // the user's removals
+              router.refresh()
+            } else {
+              versionRef.current = res.version
+              hotAccepted.current = sent.filter((h) => !res.prunedHotTakes.includes(h))
+              savedAt = res.savedAt
+              dropPruned(res.prunedHotTakes)
             }
-            savedAt = res.savedAt
           }
           sending = null
         }
@@ -154,11 +219,12 @@ export function QuestionsForm({
     })
     loop.current = p
     return p
-  }, [teamHotTakes, updateHot])
+  }, [router, updateHot, dropPruned])
 
   const markDirty = useCallback(
     (kind: 'answers' | 'hot') => {
       dirty.current[kind] = true
+      if (conflictRef.current) return // kept pending, never sent: the page must be reloaded first
       if (timer.current) clearTimeout(timer.current)
       timer.current = setTimeout(() => {
         timer.current = null
@@ -168,6 +234,11 @@ export function QuestionsForm({
     },
     [flush],
   )
+
+  // Stale 🔥 hidden at load: remove them on the server too.
+  useEffect(() => {
+    if (boot.stale.length) markDirty('hot')
+  }, [boot, markDirty])
 
   /** Skips the debounce and waits until everything is on the server (false if a save failed). */
   const flushNow = useCallback(async (): Promise<boolean> => {
@@ -187,7 +258,8 @@ export function QuestionsForm({
   // (mobile browsers may kill a backgrounded page before the debounce fires).
   useEffect(() => {
     const onBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (!hasPending()) return
+      // After a conflict the pending edits can't be saved: let "Recharger la page" go through.
+      if (conflictRef.current || !hasPending()) return
       e.preventDefault()
       e.returnValue = '' // older Safari only honours returnValue
     }
@@ -203,6 +275,7 @@ export function QuestionsForm({
   }, [flushNow])
 
   function setPick(q: QuestionId, pick: string | null) {
+    if (conflictRef.current) return
     const res = applyPick(answersRef.current, hotRef.current, q, pick, odds)
     answersRef.current = res.answers
     setAnswers(res.answers)
@@ -211,7 +284,7 @@ export function QuestionsForm({
     if (res.clearedChampion) fresh.champion = 'Ton champion n’est plus l’un de tes finalistes : choisis-le à nouveau.'
     for (const h of res.droppedHot) {
       if (h === q && !pick) continue // cleared on purpose: no need to explain
-      fresh[h] = (fresh[h] ? `${fresh[h]} ` : '') + '🔥 Hot take retiré : ce choix n’est plus assez audacieux.'
+      fresh[h] = (fresh[h] ? `${fresh[h]} ` : '') + HOT_DROPPED
     }
     setNotes((n) => ({ ...withoutKeys(n, [q, ...(res.clearedChampion ? ['champion'] : [])]), ...fresh }))
     setFieldErrors((e) => withoutKeys(e, [q, 'champion']))
@@ -224,6 +297,7 @@ export function QuestionsForm({
   }
 
   function toggleHot(q: QuestionId) {
+    if (conflictRef.current) return
     const cur = hotRef.current
     if (cur.includes(q)) updateHot(cur.filter((h) => h !== q))
     else if (hotTakeState(q, answersRef.current, cur, odds).enabled) updateHot([...cur, q])
@@ -233,7 +307,8 @@ export function QuestionsForm({
   }
 
   async function goToRecap(e: MouseEvent<HTMLAnchorElement>) {
-    if (!hasPending()) return
+    // After a conflict nothing more can be saved here: the recap shows the stored version.
+    if (conflictRef.current || !hasPending()) return
     e.preventDefault()
     // Stay here if the save failed, so the error (and the retry button) stay visible.
     if (await flushNow()) router.push('/recap')
@@ -275,7 +350,7 @@ export function QuestionsForm({
           value={value}
           onChange={onChange}
           labelledBy={titleId}
-          disabled={locked}
+          disabled={readOnly}
         />
       )
     if (q.kind === 'team' || q.kind === 'teamE' || q.kind === 'teamW')
@@ -286,7 +361,7 @@ export function QuestionsForm({
           value={value}
           onChange={onChange}
           labelledBy={titleId}
-          disabled={locked}
+          disabled={readOnly}
         />
       )
     return (
@@ -298,7 +373,7 @@ export function QuestionsForm({
         labelledBy={titleId}
         placeholder={q.kind === 'coach' ? 'Rechercher un coach ou une équipe…' : 'Rechercher un joueur ou une équipe…'}
         prefer={q.id === 'fmvp' ? fmvpPrefer : undefined}
-        disabled={locked}
+        disabled={readOnly}
       />
     )
   }
@@ -373,7 +448,7 @@ export function QuestionsForm({
         </p>
       )}
 
-      <fieldset className={styles.fieldset} disabled={locked}>
+      <fieldset className={styles.fieldset} disabled={readOnly}>
         <legend className="visually-hidden">Tes réponses aux {total} questions</legend>
         {questions.map((q, i) => {
           const titleId = `q-${q.id}-title`
@@ -481,7 +556,14 @@ export function QuestionsForm({
         <span className={styles.status} role="status" data-kind={save.kind}>
           {saveText}
         </span>
-        {save.kind === 'error' && (
+        {conflict ? (
+          <div className={styles.error} role="alert">
+            <span>{CONFLICT_NOTICE}</span>
+            <button type="button" className="btn btn-sm" onClick={() => window.location.reload()}>
+              Recharger la page
+            </button>
+          </div>
+        ) : save.kind === 'error' && (
           <div className={styles.error} role="alert">
             <span>{save.message}</span>
             {/reconnecte/i.test(save.message) ? (

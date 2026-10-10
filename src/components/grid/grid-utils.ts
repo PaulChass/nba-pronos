@@ -64,6 +64,13 @@ export function filledInConf(grid: GridPrediction, conf: Conf): number {
   return grid.order[conf].filter((abbr) => grid.wins[abbr] !== null && grid.wins[abbr] !== undefined).length
 }
 
+/** Same members whatever the order (hot-take lists: what the editor shows vs what the server holds). */
+export function sameMembers<T>(a: readonly T[], b: readonly T[]): boolean {
+  if (a.length !== b.length) return false
+  const inB = new Set(b)
+  return new Set(a).size === inB.size && a.every((x) => inB.has(x))
+}
+
 // Hand-rolled rather than Intl.NumberFormat: the server and every browser must print exactly the
 // same characters (thousands separator varies between ICU versions → hydration mismatch).
 

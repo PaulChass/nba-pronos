@@ -7,6 +7,7 @@
 // at ~30 players the computation is negligible, so an admin result change shows up immediately.
 import { cache } from 'react'
 import { NORMALIZED_LINES } from '@/config/bookmaker-lines'
+import { PLAYER_BY_ID } from './data'
 import { isLocked, isRegularSeasonOver } from '@/config/season'
 import { pseudoKey } from './auth'
 import { getStandings, type StandingsResult } from './espn'
@@ -46,7 +47,7 @@ const loadBoard = cache(async (): Promise<Board> => {
   const final = isRegularSeasonOver()
   const ctx = buildLockContext(preds, odds)
   // scoreAll ends with leaderboard(): cards come back sorted with their general rank.
-  const cards = scoreAll(preds, ctx, standings.teams, NORMALIZED_LINES, results, final)
+  const cards = scoreAll(preds, ctx, standings.teams, NORMALIZED_LINES, results, final, (id) => PLAYER_BY_ID[id]?.team)
   return { cards, standings, final, ctx, results, preds }
 })
 

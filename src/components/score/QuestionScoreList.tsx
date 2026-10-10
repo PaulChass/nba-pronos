@@ -3,7 +3,7 @@ import { answerLabel } from '@/lib/data'
 import type { LockContext } from '@/lib/scoring'
 import type { QuestionResult, QuestionScore, Results } from '@/lib/types'
 import { Chip, HotTakeBox } from './Chip'
-import { questionHotTakeView, questionStatus } from './explain'
+import { deadExplain, questionHotTakeView, questionStatus } from './explain'
 import { pts } from './format'
 import styles from './score.module.css'
 
@@ -40,6 +40,7 @@ export function QuestionScoreList({
 
 function outcome(def: QuestionDef, q: QuestionScore, result: QuestionResult | undefined): string {
   if (q.status === 'void') return 'Trophée non décerné : question annulée pour tout le monde.'
+  if (q.dead) return deadExplain(q)
   if (q.status === 'pending' || result?.status !== 'final') return `Résultat attendu : ${def.resolvesAt}.`
   const winners = result.winners.map((w) => answerLabel(def.kind, w)).join(' / ')
   const label = result.winners.length > 1 ? 'Co-vainqueurs' : 'Réponse'
@@ -64,8 +65,9 @@ function QuestionRow({
   const hotTake = questionHotTakeView(q, pickLabel, market, pickCount)
   // Undecided or void: no score yet, shown as a dash (the engine reports 0 / maxPoints 0 for void).
   const noScore = q.status !== 'final'
+  // A pick that can no longer score (spec §5.4) is greyed out.
   return (
-    <li className={styles.item}>
+    <li className={q.dead ? `${styles.item} ${styles.itemDead}` : styles.item}>
       <div className={`${styles.itemMain} ${styles.itemMainBare}`}>
         <div className={styles.info}>
           <span className={styles.qLabel}>{def.label}</span>
@@ -75,7 +77,9 @@ function QuestionRow({
           {noScore ? (
             <>
               <span aria-hidden>–</span>
-              <span className="visually-hidden">{q.status === 'void' ? 'annulée' : 'en attente'}</span>
+              <span className="visually-hidden">
+                {q.status === 'void' ? 'annulée' : q.dead ? 'éliminé' : 'en attente'}
+              </span>
             </>
           ) : (
             q.points

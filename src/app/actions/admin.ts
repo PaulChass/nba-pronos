@@ -150,7 +150,12 @@ export async function refreshScoresAction(): Promise<AdminMessage> {
   if (!(await isAdmin())) return { ok: false, message: FORBIDDEN }
   const problems: string[] = []
   await refreshStandings().catch((err) => problems.push(`classement : ${err instanceof Error ? err.message : err}`))
-  await refreshAutoResults().catch((err) => problems.push(`résultats : ${err instanceof Error ? err.message : err}`))
+  // ESPN failures don't reject: each failed source is in the report's `errors`.
+  await refreshAutoResults()
+    .then((r) => {
+      for (const [s, e] of Object.entries(r.errors)) problems.push(`résultats (${s}) : ${e}`)
+    })
+    .catch((err) => problems.push(`résultats : ${err instanceof Error ? err.message : err}`))
   revalidateScores()
   return problems.length
     ? { ok: false, message: `ESPN n’a pas tout renvoyé (${problems.join(' ; ')}). Le reste est à jour.` }

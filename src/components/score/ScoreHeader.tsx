@@ -51,7 +51,7 @@ export function ScoreHeader({
 
       <p className="small muted">
         Général = grille + questions + hot takes. Encore jouables : <strong>{pts(card.stillPlayable)}</strong>{' '}
-        (questions en attente et leurs hot takes).
+        (questions en attente et leurs hot takes, sans les choix éliminés).
       </p>
       {children}
     </section>

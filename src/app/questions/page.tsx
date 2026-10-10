@@ -51,7 +51,7 @@ export default async function QuestionsPage() {
         questions={QUESTIONS}
         initialAnswers={prediction.answers}
         initialHotQuestions={prediction.hotTakes.questions}
-        teamHotTakes={prediction.hotTakes.teams}
+        initialVersion={prediction.versions.questions}
         odds={odds}
         oddsAsOf={new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short', timeZone: PARIS }).format(new Date(asOf))}
         options={{
