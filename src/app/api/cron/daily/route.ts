@@ -42,7 +42,7 @@ export async function GET(req: Request): Promise<Response> {
       : step(async () => {
           const r = await refreshOddsSnapshot(SEASON.espnSeason, ESPN_UA)
           // A market missing from today's feed kept yesterday's odds: worth a visible warning.
-          return { ok: r.carried.length === 0, ...r }
+          return { ok: r.carried.length === 0 && r.errors.length === 0, ...r }
         }),
     step(async () => ({ ok: true, ...(await refreshStandings()) })),
     step(async () => {

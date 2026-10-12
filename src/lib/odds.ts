@@ -1,16 +1,22 @@
-// Bookmaker odds for the questions (ESPN core futures feed, DraftKings), used by the question
-// hot-take test. The daily cron refreshes the snapshot in kv until the lock; after the lock the
-// last pre-lock snapshot is frozen. If no snapshot exists, the file captured on 2026-10-10 is used.
+// Bookmaker odds for the questions, used by the question hot-take test:
+// - ESPN core futures feed (DraftKings) for most questions;
+// - Kambi (BetRivers / Unibet) public JSON for the ones ESPN lacks (scoring leader, Finals MVP),
+//   with a hand-captured copy as a last resort (config/extra-odds.ts).
+// The daily cron refreshes the snapshot in kv until the lock; after the lock the last pre-lock
+// snapshot is frozen. A question with no odds at all gets no hot take.
 import fallbackFutures from '@/data/futures-fallback.json'
-import { MANUAL_ODDS } from '@/config/manual-odds'
+import { KAMBI_MARKETS, MANUAL_ODDS } from '@/config/extra-odds'
 import { QUESTION_BY_ID, QUESTIONS } from '@/config/questions'
 import { isLocked } from '@/config/season'
 import { kvGet, kvSet } from './db'
-import { TEAM_BY_ESPN_ID } from './data'
-import type { QuestionOdds } from './types'
+import { PLAYERS, TEAM_BY_ESPN_ID } from './data'
+import { americanToProbability, devig, kambiMarket, normalizeName, playerNameIndex, type KambiBetOffers } from './odds-parse'
+import type { QuestionId, QuestionOdds } from './types'
 
 export const FUTURES_URL = (season: number) =>
   `https://sports.core.api.espn.com/v2/sports/basketball/leagues/nba/seasons/${season}/futures?limit=100`
+const KAMBI_URL = (eventId: number) =>
+  `https://eu-offering-api.kambicdn.com/offering/v2018/rsiuspa/betoffer/event/${eventId}.json?lang=en_US&market=US`
 export const ODDS_KV_KEY = 'futures-snapshot'
 
 interface EspnFutures {
@@ -22,30 +28,55 @@ interface EspnFutures {
 
 /** American odds ("+270", "-360") to implied probability. */
 export function impliedProbability(american: string): number | null {
-  const n = Number(american)
-  if (!Number.isFinite(n) || n === 0) return null
-  return n > 0 ? 100 / (n + 100) : -n / (-n + 100)
+  return americanToProbability(american)
 }
 
 const cleanName = (s: string) => s.replace(/[^\x20-\x7E]/g, '').trim()
+const PLAYER_INDEX = playerNameIndex(PLAYERS)
 
-/**
- * Hand-captured markets (config/manual-odds.ts), de-vigged, for the questions ESPN's feed does not
- * cover at all (no `futuresMarket`): they never shadow an ESPN market.
- */
+/** Only for questions ESPN's feed does not cover at all: never shadows an ESPN market. */
+const isExtraQuestion = (q: string): q is QuestionId => Object.hasOwn(QUESTION_BY_ID, q) && !QUESTION_BY_ID[q as QuestionId].futuresMarket
+
+/** Hand-captured fallback markets (config/extra-odds.ts), de-vigged and keyed by ESPN player id. */
 export function manualMarkets(): QuestionOdds {
   const out: QuestionOdds = {}
-  for (const [q, market] of Object.entries(MANUAL_ODDS) as [keyof typeof MANUAL_ODDS, NonNullable<(typeof MANUAL_ODDS)[keyof typeof MANUAL_ODDS]>][]) {
-    if (!Object.hasOwn(QUESTION_BY_ID, q) || QUESTION_BY_ID[q].futuresMarket) continue
+  for (const [q, market] of Object.entries(MANUAL_ODDS)) {
+    if (!market || !isExtraQuestion(q)) continue
     const raw: Record<string, number> = {}
     for (const e of market.entries) {
-      const p = impliedProbability(String(e.american))
-      if (p !== null) raw[e.id] = p
+      const id = PLAYER_INDEX.get(normalizeName(e.name))
+      const p = americanToProbability(e.american)
+      if (id && p !== null) raw[id] = p
     }
-    const total = Object.values(raw).reduce((a, b) => a + b, 0)
-    if (total > 0) out[q] = Object.fromEntries(Object.entries(raw).map(([id, p]) => [id, p / total]))
+    const m = devig(raw)
+    if (m) out[q] = m
   }
   return out
+}
+
+/** Kambi markets for the questions ESPN lacks. Never throws: failures are listed in `errors`. */
+export async function fetchKambiMarkets(userAgent: string): Promise<{ odds: QuestionOdds; errors: string[] }> {
+  const odds: QuestionOdds = {}
+  const errors: string[] = []
+  await Promise.all(
+    Object.entries(KAMBI_MARKETS).map(async ([q, cfg]) => {
+      if (!cfg || !isExtraQuestion(q)) return
+      try {
+        const res = await fetch(KAMBI_URL(cfg.eventId), {
+          headers: { 'user-agent': userAgent, accept: 'application/json' },
+          cache: 'no-store',
+          signal: AbortSignal.timeout(10_000),
+        })
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        const { market } = kambiMarket((await res.json()) as KambiBetOffers, cfg.offerLabel, PLAYER_INDEX)
+        if (!market || Object.keys(market).length < 5) throw new Error('offer missing or closed')
+        odds[q] = market
+      } catch (err) {
+        errors.push(`${q}: Kambi ${err instanceof Error ? err.message : String(err)}`)
+      }
+    }),
+  )
+  return { odds, errors }
 }
 
 /** ESPN futures JSON -> de-vigged probabilities per question (answer ids: tricode / ESPN id). */
@@ -65,13 +96,13 @@ export function parseFutures(json: EspnFutures): QuestionOdds {
       const id = b.team ? TEAM_BY_ESPN_ID[espnId]?.abbr : espnId
       if (id) raw[id] = p
     }
-    const total = Object.values(raw).reduce((a, b) => a + b, 0)
-    if (total > 0) out[q.id] = Object.fromEntries(Object.entries(raw).map(([id, p]) => [id, p / total]))
+    const m = devig(raw)
+    if (m) out[q.id] = m
   }
   return out
 }
 
-const FALLBACK_AS_OF = '2026-10-10T12:00:00Z'
+const FALLBACK_AS_OF = '2026-10-13T12:00:00Z'
 const fallbackOdds = (): QuestionOdds => parseFutures(fallbackFutures as EspnFutures)
 
 /**
@@ -80,9 +111,9 @@ const fallbackOdds = (): QuestionOdds => parseFutures(fallbackFutures as EspnFut
  * the lock that would silently change who qualified for a hot take.
  */
 export async function getQuestionOdds(): Promise<{ odds: QuestionOdds; asOf: string; source: 'snapshot' | 'fallback' }> {
-  // Before the lock the hand-captured markets are always the current ones; after it, only the
-  // frozen snapshot counts (the cron stored them in it).
-  const live = (odds: QuestionOdds) => (isLocked() ? odds : { ...odds, ...manualMarkets() })
+  // Before the lock, a market the snapshot does not hold yet falls back to the hand-captured copy;
+  // after it, only the frozen snapshot counts.
+  const live = (odds: QuestionOdds) => (isLocked() ? odds : { ...manualMarkets(), ...odds })
   if (!process.env.DATABASE_URL) return { odds: live(fallbackOdds()), asOf: FALLBACK_AS_OF, source: 'fallback' }
   const snap = await kvGet<QuestionOdds>(ODDS_KV_KEY)
   if (snap && Object.keys(snap.value).length) return { odds: live(snap.value), asOf: snap.updatedAt, source: 'snapshot' }
@@ -90,27 +121,31 @@ export async function getQuestionOdds(): Promise<{ odds: QuestionOdds; asOf: str
 }
 
 /**
- * Called by the daily cron before the lock. Merges per market: a market ESPN dropped today keeps
- * its last known odds (reported in `carried`), so the snapshot frozen at lock is never partial.
+ * Called by the daily cron before the lock. Merges per market: a market missing from today's feeds
+ * keeps its last known odds (reported in `carried`), so the snapshot frozen at lock is never partial.
  */
 export async function refreshOddsSnapshot(
   season: number,
   userAgent: string,
-): Promise<{ markets: number; carried: string[] }> {
-  const res = await fetch(FUTURES_URL(season), {
-    headers: { 'user-agent': userAgent, accept: 'application/json' },
-    cache: 'no-store',
-    signal: AbortSignal.timeout(10_000),
-  })
+): Promise<{ markets: number; carried: string[]; extra: string[]; errors: string[] }> {
+  const [res, kambi] = await Promise.all([
+    fetch(FUTURES_URL(season), {
+      headers: { 'user-agent': userAgent, accept: 'application/json' },
+      cache: 'no-store',
+      signal: AbortSignal.timeout(10_000),
+    }),
+    fetchKambiMarkets(userAgent),
+  ])
   if (!res.ok) throw new Error(`ESPN futures ${res.status}`)
   const fresh = parseFutures((await res.json()) as EspnFutures)
   if (Object.keys(fresh).length === 0) throw new Error('ESPN futures: no market parsed')
   const prev = (await kvGet<QuestionOdds>(ODDS_KV_KEY))?.value ?? {}
   const base = Object.keys(prev).length ? prev : fallbackOdds()
-  const merged: QuestionOdds = { ...base, ...fresh, ...manualMarkets() }
+  // Precedence: today's feeds > last snapshot > hand-captured copy.
+  const merged: QuestionOdds = { ...manualMarkets(), ...base, ...fresh, ...kambi.odds }
   const carried = QUESTIONS.filter((q) => q.futuresMarket && !fresh[q.id] && merged[q.id]).map((q) => q.id)
   // A run that started just before the lock must not write after it: the snapshot is frozen.
   if (isLocked()) throw new Error('locked: the odds snapshot is frozen')
   await kvSet(ODDS_KV_KEY, merged)
-  return { markets: Object.keys(fresh).length, carried }
+  return { markets: Object.keys(fresh).length, carried, extra: Object.keys(kambi.odds), errors: kambi.errors }
 }
