@@ -183,7 +183,8 @@ export function hotTakeState(
   const noMarket = !hasMarket(q, odds)
   let reason: string | null = null
   if (!on) {
-    if (!answers[q]) reason = 'Fais d’abord ton choix.'
+    if (noMarket) reason = 'Pas de cote des bookmakers pour cette question : pas de hot take possible.'
+    else if (!answers[q]) reason = 'Fais d’abord ton choix.'
     else if (!questionHotTakeAllowed(q, answers[q], odds))
       reason = `Choix trop attendu : un hot take doit être au moins ${SCORING.htOddsRatio} fois moins probable que le favori des bookmakers.`
     else if (hotQuestions.length >= SCORING.htMaxQuestions)

@@ -150,8 +150,8 @@ describe('questions', () => {
     )
     assert.equal(tooLikely?.chip.label, 'non retenu (les bookmakers y croyaient trop)')
     const noMarket = questionHotTakeView(question({ hotTake: { eligible: false, success: false, bonus: 0 } }), 'X', undefined, 3)
-    assert.equal(noMarket?.chip.label, 'non retenu (le groupe pensait comme toi)')
-    assert.equal(noMarket?.detail, 'Sans cote, personne d’autre ne devait faire ce choix. Ça ne coûte rien.')
+    assert.equal(noMarket?.chip.label, 'non retenu (pas de cote)')
+    assert.match(noMarket?.detail ?? '', /pas de hot take possible/)
     // Exactly 3x less likely passes the odds test (float-safe): the group is the reason.
     const exactRatio = questionHotTakeView(
       question({ hotTake: { eligible: false, success: false, bonus: 0 } }),

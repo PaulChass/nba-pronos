@@ -23,7 +23,7 @@ export const QUESTIONS: readonly QuestionDef[] = [
   { id: 'dpoy', label: 'Défenseur de l’année (DPOY)', short: 'DPOY', kind: 'player', points: 20, resolvesAt: 'fin avril', espnAwardId: 39, futuresMarket: 'NBA - Defensive Player of the Year' },
   { id: 'smoy', label: '6e homme de l’année', short: '6MOY', kind: 'player', points: 20, resolvesAt: 'fin avril', espnAwardId: 40, futuresMarket: 'NBA - 6th Man of the Year' },
   { id: 'mip', label: 'Meilleure progression (MIP)', short: 'MIP', kind: 'player', points: 20, resolvesAt: 'fin avril', espnAwardId: 36, futuresMarket: 'NBA - Most Improved Player' },
-  { id: 'clutch', label: 'Clutch Player of the Year', short: 'Clutch', kind: 'player', points: 20, resolvesAt: 'fin avril', espnAwardId: 297 },
+  { id: 'clutch', label: 'Clutch Player of the Year', short: 'Clutch', kind: 'player', points: 20, resolvesAt: 'fin avril', espnAwardId: 297, futuresMarket: 'NBA - Clutch Player of the Year' },
   { id: 'coy', label: 'Coach de l’année', short: 'COY', kind: 'coach', points: 20, resolvesAt: 'fin avril', futuresMarket: 'NBA - Coach of the Year' },
   { id: 'scoring', label: 'Meilleur marqueur (points par match)', short: 'Top scoreur', kind: 'player', points: 20, resolvesAt: 'mi-avril' },
   { id: 'cup', label: 'Vainqueur de la NBA Cup', short: 'NBA Cup', kind: 'team', points: 20, resolvesAt: '11 décembre', futuresMarket: 'NBA - In-Season Tournament Winner' },

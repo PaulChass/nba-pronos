@@ -170,15 +170,18 @@ export function questionHotTakeView(
 
   if (!ht.eligible) {
     // Mirrors the odds half of the test (validation.questionHotTakeAllowed) to name the reason.
-    // Without a market the only test is "nobody else made this pick", so the group is the reason.
-    const oddsOk = fav === null || isLongShot(p ?? Math.min(...probs), fav)
+    // Without a market there is no hot take at all.
+    if (fav === null)
+      return {
+        caption,
+        chip: { label: 'non retenu (pas de cote)', tone: 'neutral' },
+        detail: 'Pas de cote des bookmakers pour cette question : pas de hot take possible. Ça ne coûte rien.',
+      }
+    const oddsOk = isLongShot(p ?? Math.min(...probs), fav)
     return {
       caption,
       chip: { label: `non retenu (${oddsOk ? 'le groupe pensait comme toi' : 'les bookmakers y croyaient trop'})`, tone: 'neutral' },
-      detail:
-        fav === null
-          ? 'Sans cote, personne d’autre ne devait faire ce choix. Ça ne coûte rien.'
-          : `Il fallait un choix au moins ${SCORING.htOddsRatio} fois moins probable que le favori, fait par au plus 1 autre joueur sur ${SCORING.htGroupShareDivisor}. Ça ne coûte rien.`,
+      detail: `Il fallait un choix au moins ${SCORING.htOddsRatio} fois moins probable que le favori, fait par au plus 1 autre joueur sur ${SCORING.htGroupShareDivisor}. Ça ne coûte rien.`,
     }
   }
   if (q.status === 'void') return { caption, chip: { label: 'annulée', tone: 'neutral' }, detail: 'Question annulée pour tout le monde.' }

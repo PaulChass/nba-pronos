@@ -179,7 +179,7 @@ export function teamHotTakeOutcome(P: number, L: number, M: number | null, A: nu
 /**
  * Question hot take qualification (at lock). With a market: the pick must be htOddsRatio times
  * less likely than the favourite (unlisted pick = the longest listed shot) and shared by at most
- * floor((N-1)/htGroupShareDivisor) others. Without a market: nobody else made the same pick.
+ * floor((N-1)/htGroupShareDivisor) others. Without a market: never retained (no odds, no hot take).
  */
 export function questionHotTakeEligible(q: QuestionId, pick: string | null | undefined, ctx: LockContext): boolean {
   if (!pick) return false
@@ -192,7 +192,7 @@ export function questionHotTakeEligible(q: QuestionId, pick: string | null | und
     const p = market[pick] ?? Math.min(...probs)
     return isLongShot(p, fav) && others <= Math.floor((n - 1) / SCORING.htGroupShareDivisor)
   }
-  return others === 0
+  return false
 }
 
 /** Declared hot takes actually considered: known ids, de-duplicated, capped in stored order. */

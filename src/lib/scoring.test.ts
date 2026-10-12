@@ -389,14 +389,12 @@ describe('question hot-take eligibility', () => {
     assert.equal(questionHotTakeEligible('mvp', 'long', qctx('mvp', 'long', 5, 2, odds)), false) // 1 > floor(4/5)
     assert.equal(questionHotTakeEligible('mvp', 'long', qctx('mvp', 'long', 5, 1, odds)), true)
   })
-  it('no market: retained iff nobody else made the same pick, whatever the group size', () => {
-    assert.equal(questionHotTakeEligible('clutch', 'x', qctx('clutch', 'x', 5, 1)), true)
-    assert.equal(questionHotTakeEligible('clutch', 'x', qctx('clutch', 'x', 4, 1)), true)
-    assert.equal(questionHotTakeEligible('clutch', 'x', qctx('clutch', 'x', 1, 1)), true)
-    assert.equal(questionHotTakeEligible('clutch', 'x', qctx('clutch', 'x', 12, 2)), false)
-    assert.equal(questionHotTakeEligible('clutch', 'x', qctx('clutch', 'x', 3, 2)), false)
+  it('no market: never retained, even when nobody else made the same pick (no odds, no hot take)', () => {
+    assert.equal(questionHotTakeEligible('scoring', 'x', qctx('scoring', 'x', 5, 1)), false)
+    assert.equal(questionHotTakeEligible('scoring', 'x', qctx('scoring', 'x', 1, 1)), false)
+    assert.equal(questionHotTakeEligible('scoring', 'x', qctx('scoring', 'x', 12, 2)), false)
     // an empty market is no market
-    assert.equal(questionHotTakeEligible('mvp', 'x', qctx('mvp', 'x', 5, 1, { mvp: {} })), true)
+    assert.equal(questionHotTakeEligible('mvp', 'x', qctx('mvp', 'x', 5, 1, { mvp: {} })), false)
   })
   it('no pick, no hot take', () => {
     assert.equal(questionHotTakeEligible('mvp', null, qctx('mvp', 'long', 11, 1, odds)), false)
@@ -447,7 +445,7 @@ describe('scoreUser — questions', () => {
       pred(1, { answers: { clutch: 'rare', champion: 'NYK', finalistE: 'NYK' }, hotTakes: { teams: [], questions: ['clutch', 'champion'] } }),
       ...[2, 3, 4, 5].map((i) => pred(i, { answers: { clutch: `p${i}`, champion: 'OKC', finalistW: 'OKC' } })),
     ]
-    const odds: QuestionOdds = { champion: { OKC: 0.45, NYK: 0.1, BOS: 0.08 } }
+    const odds: QuestionOdds = { champion: { OKC: 0.45, NYK: 0.1, BOS: 0.08 }, clutch: { p2: 0.4, p3: 0.3, rare: 0.05 } }
     const ctx = buildLockContext(preds, odds)
     const won = scoreUser(preds[0], ctx, BASE_WINS, {
       clutch: { status: 'final', winners: ['rare'], source: 'auto' },
@@ -485,7 +483,7 @@ describe('stillPlayable', () => {
       pred(1, { answers: { mvp: 'a', clutch: 'rare', champion: 'NYK', finalistE: 'NYK' }, hotTakes: { teams: ['SAS'], questions: ['clutch'] } }),
       ...[2, 3, 4, 5].map((i) => pred(i, { answers: { clutch: `p${i}` } })),
     ]
-    const ctx = buildLockContext(preds, {})
+    const ctx = buildLockContext(preds, { clutch: { p2: 0.4, rare: 0.05 } })
     const c = scoreUser(preds[0], ctx, BASE_WINS, {
       mvp: { status: 'final', winners: ['a'], source: 'auto' },
       finalistE: { status: 'void' },

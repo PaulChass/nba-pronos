@@ -98,11 +98,13 @@ test('hot-take toggle state', () => {
   assert.equal(hotTakeState('clutch', { clutch: 'x' }, ['clutch', 'fmvp'], odds).enabled, true) // on: can switch off
   const noMarket = hotTakeState('fmvp', { fmvp: 'x' }, [], odds)
   assert.equal(noMarket.noMarket, true)
-  assert.equal(noMarket.enabled, true)
+  assert.equal(noMarket.enabled, false)
+  assert.match(noMarket.reason ?? '', /Pas de cote/)
 })
 
 test('stale stored hot takes are detected', () => {
-  assert.deepEqual(staleHotTakes(['mvp', 'fmvp'], { mvp: 'a', fmvp: 'x' }, odds), ['mvp']) // a is the favorite
+  // a is the favourite; fmvp has no odds at all, so no hot take on it either
+  assert.deepEqual(staleHotTakes(['mvp', 'fmvp'], { mvp: 'a', fmvp: 'x' }, odds), ['mvp', 'fmvp'])
   assert.deepEqual(staleHotTakes(['mvp'], { mvp: 'c' }, odds), [])
   assert.deepEqual(staleHotTakes(['mvp'], {}, odds), ['mvp']) // no pick any more
 })

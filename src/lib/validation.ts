@@ -232,13 +232,13 @@ export function teamHotTakeAllowed(grid: GridPrediction, abbr: TeamAbbr): boolea
 
 /**
  * Odds half of the question hot-take test: the pick must be at least `htOddsRatio` times less
- * likely than the market favourite. Questions without a market (`odds[q]` missing) pass here;
- * at lock they need a pick nobody else made.
+ * likely than the market favourite. No bookmaker odds for the question = no hot take on it
+ * (Paul, 2026-10-13): boldness can only be measured against a market.
  */
 export function questionHotTakeAllowed(q: QuestionId, pick: string | undefined, odds: QuestionOdds): boolean {
   if (!pick) return false
   const market = odds[q]
-  if (!market || Object.keys(market).length === 0) return true
+  if (!market || Object.keys(market).length === 0) return false
   const probs = Object.values(market)
   const fav = Math.max(...probs)
   const p = market[pick] ?? Math.min(...probs) // unlisted picks count as the longest shot

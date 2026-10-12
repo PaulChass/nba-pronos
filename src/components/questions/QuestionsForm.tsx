@@ -523,9 +523,6 @@ export function QuestionsForm({
                         ? `Déclaré ! Si ça tombe : +${q.points} pts de bonus (points doublés).`
                         : `À contre-courant ? Allume le 🔥 : points doublés si ça tombe.`)}
                   </p>
-                  {ht.noMarket && (
-                    <p>Pas de cote : pour être retenu, il faudra être le seul du groupe à faire ce choix.</p>
-                  )}
                 </div>
               </div>
             </section>

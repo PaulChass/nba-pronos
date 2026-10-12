@@ -2,7 +2,8 @@
 // hot-take test. The daily cron refreshes the snapshot in kv until the lock; after the lock the
 // last pre-lock snapshot is frozen. If no snapshot exists, the file captured on 2026-10-10 is used.
 import fallbackFutures from '@/data/futures-fallback.json'
-import { QUESTIONS } from '@/config/questions'
+import { MANUAL_ODDS } from '@/config/manual-odds'
+import { QUESTION_BY_ID, QUESTIONS } from '@/config/questions'
 import { isLocked } from '@/config/season'
 import { kvGet, kvSet } from './db'
 import { TEAM_BY_ESPN_ID } from './data'
@@ -27,6 +28,25 @@ export function impliedProbability(american: string): number | null {
 }
 
 const cleanName = (s: string) => s.replace(/[^\x20-\x7E]/g, '').trim()
+
+/**
+ * Hand-captured markets (config/manual-odds.ts), de-vigged, for the questions ESPN's feed does not
+ * cover at all (no `futuresMarket`): they never shadow an ESPN market.
+ */
+export function manualMarkets(): QuestionOdds {
+  const out: QuestionOdds = {}
+  for (const [q, market] of Object.entries(MANUAL_ODDS) as [keyof typeof MANUAL_ODDS, NonNullable<(typeof MANUAL_ODDS)[keyof typeof MANUAL_ODDS]>][]) {
+    if (!Object.hasOwn(QUESTION_BY_ID, q) || QUESTION_BY_ID[q].futuresMarket) continue
+    const raw: Record<string, number> = {}
+    for (const e of market.entries) {
+      const p = impliedProbability(String(e.american))
+      if (p !== null) raw[e.id] = p
+    }
+    const total = Object.values(raw).reduce((a, b) => a + b, 0)
+    if (total > 0) out[q] = Object.fromEntries(Object.entries(raw).map(([id, p]) => [id, p / total]))
+  }
+  return out
+}
 
 /** ESPN futures JSON -> de-vigged probabilities per question (answer ids: tricode / ESPN id). */
 export function parseFutures(json: EspnFutures): QuestionOdds {
@@ -60,10 +80,13 @@ const fallbackOdds = (): QuestionOdds => parseFutures(fallbackFutures as EspnFut
  * the lock that would silently change who qualified for a hot take.
  */
 export async function getQuestionOdds(): Promise<{ odds: QuestionOdds; asOf: string; source: 'snapshot' | 'fallback' }> {
-  if (!process.env.DATABASE_URL) return { odds: fallbackOdds(), asOf: FALLBACK_AS_OF, source: 'fallback' }
+  // Before the lock the hand-captured markets are always the current ones; after it, only the
+  // frozen snapshot counts (the cron stored them in it).
+  const live = (odds: QuestionOdds) => (isLocked() ? odds : { ...odds, ...manualMarkets() })
+  if (!process.env.DATABASE_URL) return { odds: live(fallbackOdds()), asOf: FALLBACK_AS_OF, source: 'fallback' }
   const snap = await kvGet<QuestionOdds>(ODDS_KV_KEY)
-  if (snap && Object.keys(snap.value).length) return { odds: snap.value, asOf: snap.updatedAt, source: 'snapshot' }
-  return { odds: fallbackOdds(), asOf: FALLBACK_AS_OF, source: 'fallback' }
+  if (snap && Object.keys(snap.value).length) return { odds: live(snap.value), asOf: snap.updatedAt, source: 'snapshot' }
+  return { odds: live(fallbackOdds()), asOf: FALLBACK_AS_OF, source: 'fallback' }
 }
 
 /**
@@ -84,7 +107,7 @@ export async function refreshOddsSnapshot(
   if (Object.keys(fresh).length === 0) throw new Error('ESPN futures: no market parsed')
   const prev = (await kvGet<QuestionOdds>(ODDS_KV_KEY))?.value ?? {}
   const base = Object.keys(prev).length ? prev : fallbackOdds()
-  const merged: QuestionOdds = { ...base, ...fresh }
+  const merged: QuestionOdds = { ...base, ...fresh, ...manualMarkets() }
   const carried = QUESTIONS.filter((q) => q.futuresMarket && !fresh[q.id] && merged[q.id]).map((q) => q.id)
   // A run that started just before the lock must not write after it: the snapshot is frozen.
   if (isLocked()) throw new Error('locked: the odds snapshot is frozen')

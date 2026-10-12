@@ -8,6 +8,7 @@ import { BOOKMAKER_LINES, BOOKMAKER_SOURCE, NORMALIZED_LINES } from '@/config/bo
 import { QUESTION_BY_ID, QUESTIONS, QUESTIONS_MAX_POINTS } from '@/config/questions'
 import { SCORING } from '@/config/scoring'
 import { isLocked, lockAt, SEASON } from '@/config/season'
+import { getQuestionOdds } from '@/lib/odds'
 import { TEAMS } from '@/data/teams'
 import {
   GRID_MAX_POINTS,
@@ -103,8 +104,12 @@ function linesByConf(conf: Conf) {
 
 // ---------------------------------------------------------------- page
 
-export default function RulesPage() {
+export default async function RulesPage() {
   const locked = isLocked()
+  // Questions without bookmaker odds right now (ESPN feed + manual snapshots): no hot take on them.
+  const noMarket = await getQuestionOdds()
+    .then(({ odds }) => QUESTIONS.filter((q) => !Object.keys(odds[q.id] ?? {}).length).map((q) => q.short))
+    .catch(() => NO_MARKET)
   const lockDate = formatLockDate(lockAt().toISOString())
 
   return (
@@ -412,8 +417,9 @@ export default function RulesPage() {
             </li>
           </ol>
           <p className={styles.htStep}>
-            Questions sans cote ({NO_MARKET.join(', ')}) : il faut que <strong>personne d’autre</strong> n’ait fait ce
-            choix.
+            {noMarket.length > 0
+              ? `Pas de hot take possible sur les questions sans cote des bookmakers (${noMarket.join(', ')}).`
+              : 'Toutes les questions ont une cote des bookmakers.'}
           </p>
           <p className={styles.htStep}>
             Réussi si ta réponse est la bonne : <strong>les points de la question sont doublés</strong>.
